@@ -25,8 +25,6 @@
 
 #include "kubos-hal/gpio.h"
 #include "kubos-hal/uart.h"
-#include "kubos-hal/i2c.h"
-#include "kubos-core/modules/klog.h"
 
 #include "kubos-core/modules/fs/fs.h"
 #include "kubos-core/modules/fatfs/ff.h"
@@ -36,9 +34,8 @@
 #include <csp/csp.h>
 
 static inline void blink(int pin) {
-    #define BLINK_MS 100
     k_gpio_write(pin, 1);
-    vTaskDelay(50);
+    vTaskDelay(5);
     k_gpio_write(pin, 0);
 }
 
@@ -75,22 +72,23 @@ uint16_t write_string(char * str, int len)
             f_close(&Fil);
         }
     }
-    f_mount(NULL, "", 0);
+    //f_mount(NULL, "", 0);
     return ret;
 }
 
 void task_logging(void *p)
 {
-    char buffer[32];
+    char buffer[128];
     volatile uint16_t num = 0;
     while (1)
     {
-        while ((num = k_uart_read(K_UART_CONSOLE, buffer, 20)) > 0)
+        blink(K_LED_ORANGE);
+        while ((num = k_uart_read(K_UART_CONSOLE, buffer, 128)) > 0)
         {
             write_string(buffer, num);
             blink(K_LED_BLUE);
         }
-        vTaskDelay(500);
+        vTaskDelay(1);
     }
 }
 
