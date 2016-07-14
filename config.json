@@ -6,7 +6,7 @@
         },
         "uartDefaults": {
             "txQueueLen": 128,
-            "rxQueueLen": 128
+            "rxQueueLen": 300
         }
     }
 }

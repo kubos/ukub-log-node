@@ -35,7 +35,7 @@
 
 static inline void blink(int pin) {
     k_gpio_write(pin, 1);
-    vTaskDelay(5);
+    vTaskDelay(1);
     k_gpio_write(pin, 0);
 }
 
@@ -54,23 +54,51 @@ uint16_t open_append(FIL * fp, const char * path)
     return result;
 }
 
-uint16_t write_string(char * str, int len)
+// uint16_t write_string(char * str, int len)
+// {
+//     static FATFS FatFs;
+//     static FIL Fil;
+//     uint16_t ret;
+//     uint16_t bw;
+//     if ((ret = f_mount(&FatFs, "", 1)) == FR_OK)
+//     {
+//         if ((ret = open_append(&Fil, "data.txt")) == FR_OK)
+//         {
+//             if ((ret = f_write(&Fil, str, len, &bw)) == FR_OK)
+//             {
+//                 ret = f_close(&Fil);
+//                 blink(K_LED_GREEN);
+//             }
+//             f_close(&Fil);
+//         }
+//     }
+//     //f_mount(NULL, "", 0);
+//     return ret;
+// }
+
+uint16_t open_file(FATFS * FatFs, FIL * Fil)
 {
-    static FATFS FatFs;
-    static FIL Fil;
+    uint16_t ret;
+    if ((ret = f_mount(FatFs, "", 1)) == FR_OK)
+    {
+        ret = open_append(Fil, "data.txt");
+    }
+    //f_mount(NULL, "", 0);
+    return ret;
+}
+
+
+uint16_t just_write(FIL * Fil, char * str, uint16_t len)
+{
     uint16_t ret;
     uint16_t bw;
-    if ((ret = f_mount(&FatFs, "", 1)) == FR_OK)
+    if ((ret = f_write(Fil, str, len, &bw)) == FR_OK)
     {
-        if ((ret = open_append(&Fil, "data.txt")) == FR_OK)
-        {
-            if ((ret = f_write(&Fil, str, len, &bw)) == FR_OK)
-            {
-                ret = f_close(&Fil);
-                blink(K_LED_GREEN);
-            }
-            f_close(&Fil);
-        }
+        blink(K_LED_GREEN);
+    }
+    else
+    {
+        f_close(Fil);
     }
     //f_mount(NULL, "", 0);
     return ret;
@@ -78,15 +106,36 @@ uint16_t write_string(char * str, int len)
 
 void task_logging(void *p)
 {
+    static FATFS FatFs;
+    static FIL Fil;
     char buffer[128];
-    volatile uint16_t num = 0;
+    uint16_t num = 0;
+    uint16_t sd_stat = FR_OK;
+    uint16_t sync_count = 0;
+
+    sd_stat = open_file(&FatFs, &Fil);
     while (1)
     {
-        blink(K_LED_ORANGE);
+        //blink(K_LED_ORANGE);
         while ((num = k_uart_read(K_UART_CONSOLE, buffer, 128)) > 0)
         {
-            write_string(buffer, num);
-            blink(K_LED_BLUE);
+            if (sd_stat != FR_OK)
+            {
+                blink(K_LED_RED);
+                sd_stat = open_file(&FatFs, &Fil);
+            }
+            else
+            {
+                blink(K_LED_BLUE);
+                sd_stat = just_write(&Fil, buffer, num);
+            }
+            sync_count++;
+            if ((sync_count % 20) == 0)
+            {
+                sync_count = 0;
+                f_sync(&Fil);
+            }
+            //blink(K_LED_BLUE);
         }
         vTaskDelay(1);
     }
@@ -102,7 +151,7 @@ int main(void)
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_BUTTON_0, K_GPIO_INPUT, K_GPIO_PULL_NONE);
 
-    xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 4, NULL, 2, NULL);
+    xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);
 
     vTaskStartScheduler();
 
