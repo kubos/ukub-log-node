@@ -54,27 +54,27 @@ uint16_t open_append(FIL * fp, const char * path)
     return result;
 }
 
-// uint16_t write_string(char * str, int len)
-// {
-//     static FATFS FatFs;
-//     static FIL Fil;
-//     uint16_t ret;
-//     uint16_t bw;
-//     if ((ret = f_mount(&FatFs, "", 1)) == FR_OK)
-//     {
-//         if ((ret = open_append(&Fil, "data.txt")) == FR_OK)
-//         {
-//             if ((ret = f_write(&Fil, str, len, &bw)) == FR_OK)
-//             {
-//                 ret = f_close(&Fil);
-//                 blink(K_LED_GREEN);
-//             }
-//             f_close(&Fil);
-//         }
-//     }
-//     //f_mount(NULL, "", 0);
-//     return ret;
-// }
+uint16_t write_string(char * str, int len)
+{
+    static FATFS FatFs;
+    static FIL Fil;
+    uint16_t ret;
+    uint16_t bw;
+    if ((ret = f_mount(&FatFs, "", 1)) == FR_OK)
+    {
+        if ((ret = open_append(&Fil, "data.txt")) == FR_OK)
+        {
+            if ((ret = f_write(&Fil, str, len, &bw)) == FR_OK)
+            {
+                ret = f_close(&Fil);
+                blink(K_LED_GREEN);
+            }
+            f_close(&Fil);
+        }
+    }
+    //f_mount(NULL, "", 0);
+    return ret;
+}
 
 uint16_t open_file(FATFS * FatFs, FIL * Fil)
 {
@@ -116,28 +116,34 @@ void task_logging(void *p)
     sd_stat = open_file(&FatFs, &Fil);
     while (1)
     {
-        //blink(K_LED_ORANGE);
         while ((num = k_uart_read(K_UART_CONSOLE, buffer, 128)) > 0)
         {
             if (sd_stat != FR_OK)
             {
                 blink(K_LED_RED);
+                f_close(&Fil);
+                vTaskDelay(50);
+                f_mount(NULL, "", 0);
+                vTaskDelay(50);
                 sd_stat = open_file(&FatFs, &Fil);
+                vTaskDelay(50);
             }
             else
             {
                 blink(K_LED_BLUE);
                 sd_stat = just_write(&Fil, buffer, num);
+                // Sync every 20 writes
+                if (sd_stat == FR_OK)
+                {
+                    sync_count++;
+                    if ((sync_count % 20) == 0)
+                    {
+                        sync_count = 0;
+                        f_sync(&Fil);
+                    }
+                }
             }
-            sync_count++;
-            if ((sync_count % 20) == 0)
-            {
-                sync_count = 0;
-                f_sync(&Fil);
-            }
-            //blink(K_LED_BLUE);
         }
-        vTaskDelay(1);
     }
 }
 
