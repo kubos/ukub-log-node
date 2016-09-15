@@ -29,7 +29,7 @@
 #include "kubos-core/modules/fs/fs.h"
 #include "kubos-core/modules/fatfs/ff.h"
 
-#include "kubos-core/modules/fatfs/stm32f4/diskio.h"
+#include "kubos-core/modules/fatfs/diskio.h"
 
 #include <csp/csp.h>
 

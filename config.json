@@ -1,8 +1,16 @@
 {
+    "fs": {
+    	"fatfs": {
+    		"driver": {
+    			"SDIO": {}
+    		}
+    	}
+    },
     "hardware": {
+    	"SDIO": {},
         "console": {
             "uart": "K_UART2",
-            "baudRate": "115200"
+            "baudRate": "57600"
         },
         "uartDefaults": {
             "txQueueLen": 128,
