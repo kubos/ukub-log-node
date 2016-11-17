@@ -33,6 +33,8 @@
 
 #include <csp/csp.h>
 
+#define FILE_PATH "data.txt"
+
 static inline void blink(int pin) {
     k_gpio_write(pin, 1);
     vTaskDelay(1);
@@ -54,7 +56,7 @@ uint16_t open_append(FIL * fp, const char * path)
     return result;
 }
 
-uint16_t write_string(char * str, int len)
+uint16_t write_string(char * str, int len, const char * path)
 {
     static FATFS FatFs;
     static FIL Fil;
@@ -62,7 +64,7 @@ uint16_t write_string(char * str, int len)
     uint16_t bw;
     if ((ret = f_mount(&FatFs, "", 1)) == FR_OK)
     {
-        if ((ret = open_append(&Fil, "data.txt")) == FR_OK)
+        if ((ret = open_append(&Fil, path)) == FR_OK)
         {
             if ((ret = f_write(&Fil, str, len, &bw)) == FR_OK)
             {
@@ -76,12 +78,12 @@ uint16_t write_string(char * str, int len)
     return ret;
 }
 
-uint16_t open_file(FATFS * FatFs, FIL * Fil)
+uint16_t open_file(FATFS * FatFs, FIL * Fil, const char * path)
 {
     uint16_t ret;
     if ((ret = f_mount(FatFs, "", 1)) == FR_OK)
     {
-        ret = open_append(Fil, "data.txt");
+        ret = open_append(Fil, path);
     }
     //f_mount(NULL, "", 0);
     return ret;
@@ -113,7 +115,7 @@ void task_logging(void *p)
     uint16_t sd_stat = FR_OK;
     uint16_t sync_count = 0;
 
-    sd_stat = open_file(&FatFs, &Fil);
+    sd_stat = open_file(&FatFs, &Fil, FILE_PATH);
     while (1)
     {
         while ((num = k_uart_read(K_UART_CONSOLE, buffer, 128)) > 0)
@@ -125,7 +127,7 @@ void task_logging(void *p)
                 vTaskDelay(50);
                 f_mount(NULL, "", 0);
                 vTaskDelay(50);
-                sd_stat = open_file(&FatFs, &Fil);
+                sd_stat = open_file(&FatFs, &Fil, FILE_PATH);
                 vTaskDelay(50);
             }
             else
