@@ -23,6 +23,8 @@
 #include "timers.h"
 #include "queue.h"
 
+#include "telemetry.h"
+
 #include "kubos-hal/gpio.h"
 #include "kubos-hal/uart.h"
 
@@ -37,6 +39,7 @@
 
 /* set at FatFs LFN max length */ 
 #define FILE_NAME_BUFFER_SIZE 255
+#define DATA_BUFFER_SIZE 128
 
 static inline void blink(int pin) {
     k_gpio_write(pin, 1);
@@ -123,8 +126,33 @@ void create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned int add
     len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "%hhu%u.txt", source_id, address);
 
     if(len < 0 || len >= FILE_NAME_BUFFER_SIZE) {
-    printf("Filename char limit exceeded. Have %d, need %d + \\0\n", FILE_NAME_BUFFER_SIZE, len);
-    return;
+        printf("Filename char limit exceeded. Have %d, need %d + \\0\n", FILE_NAME_BUFFER_SIZE, len);
+        len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "\0");
+    }
+}
+
+
+/**
+ * @brief creates a formatted log entry from the telemetry packet.
+ * @param data_buf_ptr a pointer to the char[] to write to.
+ * @param packet a telemetry packet to create a log entry from.
+ */
+void format_log_entry(char *data_buf_ptr, telemetry_packet packet) {
+    
+    int len;
+
+    if(packet.source.data_type == TELEMETRY_TYPE_INT) {
+        len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%hu,%d\r\n", packet.timestamp, packet.data.i);
+        if(len < 0 || len >= DATA_BUFFER_SIZE) {
+            printf("Data char limit exceeded for int packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
+        }
+    }
+
+    if(packet.source.data_type == TELEMETRY_TYPE_FLOAT) {
+        len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%hu,%f\r\n", packet.timestamp, packet.data.f);
+        if(len < 0 || len >= DATA_BUFFER_SIZE) {
+            printf("Data char limit exceeded for float packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
+        }
     }
 }
 
@@ -135,11 +163,14 @@ void task_logging(void *p)
     char buffer[128];
     static char filename_buffer[FILE_NAME_BUFFER_SIZE];
     static char *buf_ptr;
+    static char data_buffer[DATA_BUFFER_SIZE];
+    static char *data_buf_ptr;
     uint16_t num = 0;
     uint16_t sd_stat = FR_OK;
     uint16_t sync_count = 0;
     
     buf_ptr = filename_buffer;
+    data_buf_ptr = data_buffer;
 
     sd_stat = open_file(&FatFs, &Fil, FILE_PATH);
     while (1)
