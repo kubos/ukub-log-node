@@ -35,6 +35,9 @@
 
 #define FILE_PATH "data.txt"
 
+/* set at FatFs LFN max length */ 
+#define FILE_NAME_BUFFER_SIZE 255
+
 static inline void blink(int pin) {
     k_gpio_write(pin, 1);
     vTaskDelay(1);
@@ -106,14 +109,37 @@ uint16_t just_write(FIL * Fil, char * str, uint16_t len)
     return ret;
 }
 
+/**
+ * @brief creates a filename that corresponds to the telemetry packet source_id and 
+ *        the csp packet address.
+ * @param filename_buf_ptr a pointer to the char[] to write to.
+ * @param source_id the telemetry packet source_id from packet.source.source_id.
+ * @param address the csp packet address from packet->id.src. 
+ */
+void create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned int address)
+{
+    int len;
+    
+    len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "%hhu%u.txt", source_id, address);
+
+    if(len < 0 || len >= FILE_NAME_BUFFER_SIZE) {
+    printf("Filename char limit exceeded. Have %d, need %d + \\0\n", FILE_NAME_BUFFER_SIZE, len);
+    return;
+    }
+}
+
 void task_logging(void *p)
 {
     static FATFS FatFs;
     static FIL Fil;
     char buffer[128];
+    static char filename_buffer[FILE_NAME_BUFFER_SIZE];
+    static char *buf_ptr;
     uint16_t num = 0;
     uint16_t sd_stat = FR_OK;
     uint16_t sync_count = 0;
+    
+    buf_ptr = filename_buffer;
 
     sd_stat = open_file(&FatFs, &Fil, FILE_PATH);
     while (1)
