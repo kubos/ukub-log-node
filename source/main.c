@@ -122,8 +122,12 @@ uint16_t just_write(FIL * Fil, char * str, uint16_t len)
 void create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned int address)
 {
     int len;
-    
-    len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "%hhu%u.txt", source_id, address);
+
+    if (filename_buf_ptr == NULL) {
+        return;
+    }
+
+    len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "%hhu%u.csv", source_id, address);
 
     if(len < 0 || len >= FILE_NAME_BUFFER_SIZE) {
         printf("Filename char limit exceeded. Have %d, need %d + \\0\n", FILE_NAME_BUFFER_SIZE, len);
@@ -141,10 +145,15 @@ void format_log_entry(char *data_buf_ptr, telemetry_packet packet) {
     
     int len;
 
+    if (data_buf_ptr == NULL) {
+        return;
+    }
+
     if(packet.source.data_type == TELEMETRY_TYPE_INT) {
         len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%hu,%d\r\n", packet.timestamp, packet.data.i);
         if(len < 0 || len >= DATA_BUFFER_SIZE) {
             printf("Data char limit exceeded for int packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
+            len = snprintf(data_buf_ptr, FILE_NAME_BUFFER_SIZE, "\0");
         }
     }
 
@@ -152,6 +161,7 @@ void format_log_entry(char *data_buf_ptr, telemetry_packet packet) {
         len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%hu,%f\r\n", packet.timestamp, packet.data.f);
         if(len < 0 || len >= DATA_BUFFER_SIZE) {
             printf("Data char limit exceeded for float packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
+            len = snprintf(data_buf_ptr, FILE_NAME_BUFFER_SIZE, "\0");
         }
     }
 }
