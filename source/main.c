@@ -17,78 +17,82 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "FreeRTOS.h"
-#include "task.h"
-#include "timers.h"
-#include "queue.h"
-
-#include "disk.h"
-#include "misc.h"
-
-#include "kubos-hal/gpio.h"
-#include "kubos-hal/uart.h"
-
+#include <telemetry/telemetry/telemetry.h>
 #include <csp/csp.h>
+#include <csp/arch/csp_thread.h>
+#include <csp/arch/csp_time.h>
+#include "telemetry_storage.h"
 
-#define FILE_PATH "data.txt"
+#ifdef TARGET_LIKE_FREERTOS
+#include "kubos-hal/uart.h"
+#endif
 
-void task_logging(void *p)
+
+CSP_DEFINE_TASK(telemetry_log_thread)
 {
-    static FATFS FatFs;
-    static FIL Fil;
-    char buffer[128];
-    uint16_t num = 0;
-    uint16_t sd_stat = FR_OK;
-    uint16_t sync_count = 0;
+    int running = 1;
+    csp_socket_t *socket = csp_socket(CSP_SO_NONE);
+    csp_conn_t *conn;
+    csp_packet_t *packet;
 
-    sd_stat = open_file(&FatFs, &Fil, FILE_PATH);
-    while (1)
-    {
-        while ((num = k_uart_read(K_UART_CONSOLE, buffer, 128)) > 0)
-        {
-            if (sd_stat != FR_OK)
-            {
-                blink(K_LED_RED);
-                f_close(&Fil);
-                vTaskDelay(50);
-                f_mount(NULL, "", 0);
-                vTaskDelay(50);
-                sd_stat = open_file(&FatFs, &Fil, FILE_PATH);
-                vTaskDelay(50);
-            }
-            else
-            {
-                blink(K_LED_BLUE);
-                sd_stat = just_write(&Fil, buffer, num);
-                // Sync every 20 writes
-                if (sd_stat == FR_OK)
-                {
-                    sync_count++;
-                    if ((sync_count % 20) == 0)
-                    {
-                        sync_count = 0;
-                        f_sync(&Fil);
-                    }
-                }
+    csp_bind(socket, CSP_ANY);
+    csp_listen(socket, 5);
+
+    while(running) {
+        if( (conn = csp_accept(socket, 10000)) == NULL ) {
+            continue;
+        }
+
+        while( (packet = csp_read(conn, 100)) != NULL ) {
+            switch( csp_conn_dport(conn) ) {
+                case CSP_ANY:
+                    telemetry_store(packet);
+                    csp_buffer_free(packet);
+                    break;
+                default:
+                    csp_service_handler(conn, packet);
+                    break;
             }
         }
+
+        csp_close(conn);
     }
 }
 
+
 int main(void)
 {
+    #ifdef TARGET_LIKE_FREERTOS
     k_uart_console_init();
+    #endif
 
-    k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
-    k_gpio_init(K_LED_ORANGE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
-    k_gpio_init(K_LED_RED, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
-    k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
-    k_gpio_init(K_BUTTON_0, K_GPIO_INPUT, K_GPIO_PULL_NONE);
+    #ifdef TARGET_LIKE_MSP430
+    /* Stop the watchdog. */
+    WDTCTL = WDTPW + WDTHOLD;
 
-    xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);
+    __enable_interrupt();
+    #endif
 
+    printf("Initialising CSP\r\n");
+    csp_buffer_init(5, 20);
+
+    /* Init CSP with address MY_ADDRESS */
+    csp_init(1);
+
+    /* Start router task with 500 word stack, OS task priority 1 */
+    csp_route_start_task(50, 1);
+
+    csp_thread_handle_t telemetry_log_handle; 
+    csp_thread_create(telemetry_log_thread, "TELEMETRY_RX", 50, NULL, 0, &telemetry_log_handle);
+
+    #ifdef TARGET_LIKE_FREERTOS
     vTaskStartScheduler();
+    #endif
+
+    /* Wait for program to terminate (ctrl + c) */
+    while(1) {
+        csp_sleep_ms(1000000);
+    }
 
     return 0;
 }

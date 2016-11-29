@@ -66,3 +66,47 @@ uint16_t just_write(FIL * Fil, char * str, uint16_t len)
     //f_mount(NULL, "", 0);
     return ret;
 }
+
+
+void task_logging(void *p, const char *file_path)
+{
+    static FATFS FatFs;
+    static FIL Fil;
+    char buffer[128];
+    uint16_t num = 0;
+    uint16_t sd_stat = FR_OK;
+    uint16_t sync_count = 0;
+
+    sd_stat = open_file(&FatFs, &Fil, file_path);
+    while (1)
+    {
+        while ((num = k_uart_read(K_UART_CONSOLE, buffer, 128)) > 0)
+        {
+            if (sd_stat != FR_OK)
+            {
+                blink(K_LED_RED);
+                f_close(&Fil);
+                vTaskDelay(50);
+                f_mount(NULL, "", 0);
+                vTaskDelay(50);
+                sd_stat = open_file(&FatFs, &Fil, file_path);
+                vTaskDelay(50);
+            }
+            else
+            {
+                blink(K_LED_BLUE);
+                sd_stat = just_write(&Fil, buffer, num);
+                // Sync every 20 writes
+                if (sd_stat == FR_OK)
+                {
+                    sync_count++;
+                    if ((sync_count % 20) == 0)
+                    {
+                        sync_count = 0;
+                        f_sync(&Fil);
+                    }
+                }
+            }
+        }
+    }
+}
