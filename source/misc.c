@@ -1,7 +1,8 @@
+#include "misc.h"
 #include <kubos-hal/gpio.h>
 #include <FreeRTOS.h>
 #include <task.h>
-#include "misc.h"
+
 
 inline void blink(int pin) {
     k_gpio_write(pin, 1);
