@@ -58,7 +58,8 @@ CSP_DEFINE_TASK(task_server) {
         while ((packet = csp_read(conn, 100)) != NULL) {
             switch (csp_conn_dport(conn)) {
             case MY_PORT:
-                telemetry_store(packet);
+                data = *((telem_data*)packet->data);
+                telemetry_store(data);
                 csp_buffer_free(packet);
                 #if defined(TARGET_LIKE_FREERTOS) && defined(TARGET_LIKE_STM32)
                 blink(K_LED_ORANGE);

@@ -1,8 +1,13 @@
 #ifndef TELEMETRY_STORAGE_H
 #define TELEMETRY_STORAGE_H
 
-#include <csp/csp_types.h>
+#include <telemetry/telemetry/telemetry.h>
 
-void telemetry_store(csp_packet_t *packet);
+
+/**
+ * @brief store a csp packet or packet contents in a particular format.
+ * @param packet a pointer to the CSP packet.
+ */
+void telemetry_store(telemetry_packet data, unsigned int address);
 
 #endif
