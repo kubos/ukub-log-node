@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <inttypes.h>
 #include <telemetry/telemetry/telemetry.h>
 #include "disk.h"
 #include "telemetry_storage.h"
@@ -30,7 +29,7 @@ static int create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned i
         return 0;
     }
 
-    len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "%" PRIu8 "%u%s", source_id, address, file_extension);
+    len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "%u%u%s", source_id, address, file_extension);
 
     if(len < 0 || len >= FILE_NAME_BUFFER_SIZE) {
         printf("Filename char limit exceeded. Have %d, need %d + \\0\n", FILE_NAME_BUFFER_SIZE, len);
@@ -56,7 +55,7 @@ static int format_log_entry_csv(char *data_buf_ptr, telemetry_packet packet) {
     }
 
     if(packet.source.data_type == TELEMETRY_TYPE_INT) {
-        len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%" PRIu16 ",%d\r\n", packet.timestamp, packet.data.i);
+        len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%u,%d\r\n", packet.timestamp, packet.data.i);
         if(len < 0 || len >= DATA_BUFFER_SIZE) {
             printf("Data char limit exceeded for int packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
             return 0;
@@ -65,7 +64,7 @@ static int format_log_entry_csv(char *data_buf_ptr, telemetry_packet packet) {
     }
 
     if(packet.source.data_type == TELEMETRY_TYPE_FLOAT) {
-        len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%" PRIu16 "%f\r\n", packet.timestamp, packet.data.f);
+        len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%u,%f\r\n", packet.timestamp, packet.data.f);
         if(len < 0 || len >= DATA_BUFFER_SIZE) {
             printf("Data char limit exceeded for float packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
             return 0;
@@ -92,7 +91,7 @@ static void format_log_entry_hex(char *data_buf_ptr, csp_packet_t *packet) {
  * @brief print telemetry packet data.
  * @param packet a telemetry packet with data to print.
  */
-static void print_to_console(telemetry_packet packet){
+void print_to_console(telemetry_packet packet){
     
     if(packet.source.data_type == TELEMETRY_TYPE_INT) {
         printf("%d\r\n", packet.data.i);
@@ -119,11 +118,11 @@ void telemetry_store(telemetry_packet data, unsigned int address)
     
     filename_len = create_filename(filename_buf_ptr, data.source.source_id, address, FILE_EXTENSION_CSV);
     data_len = format_log_entry_csv(data_buf_ptr, data);
-    
-    /*log here*/
-    diskio_save(filename_buf_ptr, data_buf_ptr, data_len);
 
-    printf("Log Entry = %s", data_buf_ptr);
-    printf("Filename = %s", filename_buf_ptr);
-    printf("The data length %u\r\n", data_len);
+    /*log here*/
+    disk_save_string(filename_buf_ptr, data_buf_ptr, data_len);
+
+    //printf("Log Entry = %s", data_buf_ptr);
+    //printf("Filename = %s", filename_buf_ptr);
+    //printf("The data length %u\r\n", data_len);
 }

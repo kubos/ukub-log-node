@@ -10,4 +10,6 @@
  */
 void telemetry_store(telemetry_packet data, unsigned int address);
 
+void print_to_console(telemetry_packet data);
+
 #endif
