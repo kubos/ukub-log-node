@@ -56,65 +56,14 @@ CSP_DEFINE_TASK(task_server) {
 
         while ((packet = csp_read(conn, 100)) != NULL) {
             switch (csp_conn_dport(conn)) {
-            case TELEMETRY_BEACON_PORT:
-                data = *((telemetry_packet*)packet->data);
-                telemetry_store(data, TELEMETRY_CSP_ADDRESS);
-                csp_buffer_free(packet);
-                #if defined(TARGET_LIKE_FREERTOS) && defined(TARGET_LIKE_STM32)
-                blink(K_LED_ORANGE);
-                #endif
-                break;
-            default:
-                csp_service_handler(conn, packet);
-                break;
+                case TELEMETRY_BEACON_PORT:
+                    data = *((telemetry_packet*)packet->data);
+                    telemetry_store(data, TELEMETRY_CSP_ADDRESS);
+                    csp_buffer_free(packet);
+                    break;
+                default:
+                    break;
             }
-        }
-        csp_close(conn);
-    }
-    return CSP_TASK_RETURN;
-}
-
-
-CSP_DEFINE_TASK(task_client) {
-
-    csp_packet_t * packet;
-    csp_conn_t * conn;
-
-    /* Create a telemetry packet with some dummy test data */
-    telemetry_packet data;
-    data.data.i = 111;
-    data.timestamp = 222;
-    data.source.data_type = TELEMETRY_TYPE_INT;
-    data.source.source_id = 3;
-
-    while (1) {
-
-        csp_sleep_ms(1000);
-
-        int result = csp_ping(TELEMETRY_CSP_ADDRESS, 100, 100, CSP_O_NONE);
-        printf("Ping result %d [ms]\r\n", result);
-
-        csp_sleep_ms(1000);
-
-        packet = csp_buffer_get(100);
-        if (packet == NULL) {
-            printf("Failed to get buffer element\n");
-            return CSP_TASK_RETURN;
-        }
-
-        conn = csp_connect(CSP_PRIO_NORM, TELEMETRY_CSP_ADDRESS, TELEMETRY_BEACON_PORT, 1000, CSP_O_NONE);
-        if (conn == NULL) {
-            printf("Connection failed\n");
-            csp_buffer_free(packet);
-            return CSP_TASK_RETURN;
-        }
-
-        memcpy(packet->data, &data, sizeof(telemetry_packet));
-        packet->length = sizeof(telemetry_packet);
-
-        if (!csp_send(conn, packet, 1000)) {
-            printf("Send failed\n");
-            csp_buffer_free(packet);
         }
         csp_close(conn);
     }
@@ -137,7 +86,6 @@ void task_csp_telem_interface(void* p) {
     csp_conn_t *incoming_connection;
     csp_packet_t *packet;
     telemetry_packet* t_packet;
-
     /* Process incoming connections */
     while (1) {
 
@@ -151,6 +99,7 @@ void task_csp_telem_interface(void* p) {
                 case TELEMETRY_BEACON_PORT:
                     /* Process packet here */
                     t_packet = packet->data;
+                    /* This is the function call where the watchdog irq is firing */
                     telemetry_submit(*t_packet);
                     blink(K_LED_GREEN);
                     csp_buffer_free(packet);
@@ -175,13 +124,13 @@ void local_usart_rx(uint8_t * buf, int len, void * pxTaskWoken) {
     csp_kiss_rx(&csp_if_kiss, buf, len, pxTaskWoken);
 }
 
-
 int main(void) {
     //Console is on UART2
     k_uart_console_init();
 
     struct usart_conf conf;
     /* set the device in KISS / UART interface */
+    //TODO: Set the UART in the config.json
     char dev = (char)K_UART6;
     conf.device = &dev;
     //TODO: Set this in the config.json
@@ -200,30 +149,21 @@ int main(void) {
     /* set to route through KISS / UART */
     csp_init(TELEMETRY_CSP_ADDRESS);
     csp_route_set(TELEMETRY_CSP_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
-    csp_route_start_task(500, 1);
+    csp_route_start_task(10000, 1);
 
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_ORANGE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_RED, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
-    k_gpio_init(K_BUTTON_0, K_GPIO_INPUT, K_GPIO_PULL_NONE);
 
     //TODO: Get working along with the logging thread
     /*xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);*/
-    xTaskCreate(task_csp_telem_interface, "csp_telem_interface", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);
+    csp_thread_create(task_csp_telem_interface, "csp_telem_interface", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);
 
-    /* Server */
-    printf("Starting Server task\r\n");
     csp_thread_handle_t handle_server;
     csp_thread_create(task_server, "SERVER", 1000, NULL, 0, &handle_server);
 
-     /*Client */
-    /*printf("Starting Client task\r\n");*/
-    /*csp_thread_handle_t handle_client;*/
-    /*csp_thread_create(task_client, "CLIENT", 1000, NULL, 0, &handle_client);*/
-
     vTaskStartScheduler();
-    /* Wait for execution to end (ctrl+c) */
     while(1) {
     }
 
