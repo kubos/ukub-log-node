@@ -1,13 +1,21 @@
 {
+     "CSP": {
+       "my_address": "3",
+       "port": "10",
+       "uart_bus": "K_UART6",
+       "usart": {
+       },
+       "rdp" : true
+   },
     "fs": {
-    	"fatfs": {
-    		"driver": {
-    			"SDIO": {}
-    		}
-    	}
+        "fatfs": {
+            "driver": {
+                "SDIO": {}
+         }
+        }
     },
     "hardware": {
-    	"SDIO": {},
+        "SDIO": {},
         "console": {
             "uart": "K_UART2",
             "baudRate": "57600"
@@ -16,5 +24,8 @@
             "txQueueLen": 128,
             "rxQueueLen": 300
         }
+    },
+    "telemetry": {
+        "csp_address": 3
     }
 }

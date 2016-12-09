@@ -31,7 +31,13 @@
 
 #include "kubos-core/modules/fatfs/diskio.h"
 
+#include <telemetry-aggregator/aggregator.h>
+#include <telemetry/destinations.h>
+
 #include <csp/csp.h>
+#include <csp/drivers/usart.h>
+#include <csp/interfaces/csp_if_kiss.h>
+
 
 static inline void blink(int pin) {
     k_gpio_write(pin, 1);
@@ -147,9 +153,87 @@ void task_logging(void *p)
     }
 }
 
-int main(void)
-{
+
+void task_csp_telem_interface(void* p) {
+
+    /* Create socket without any socket options */
+    csp_socket_t *sock = csp_socket(CSP_SO_NONE);
+
+    /* Bind all ports to socket */
+    csp_bind(sock, CSP_ANY);
+
+    /* Create 10 connections backlog queue */
+    csp_listen(sock, 10);
+
+    /* Pointer to current connection and packet */
+    csp_conn_t *incoming_connection;
+    csp_packet_t *packet;
+    telemetry_packet* t_packet;
+
+    /* Process incoming connections */
+    while (1) {
+
+        /* Wait for connection, 100 ms timeout */
+        if ((incoming_connection = csp_accept(sock, 100)) == NULL)
+            continue;
+
+        /* Read packets. Timout is 100 ms */
+        while ((packet = csp_read(incoming_connection, 100)) != NULL) {
+            switch (csp_conn_dport(incoming_connection)) {
+                case TELEMETRY_BEACON_PORT:
+                    /* Process packet here */
+                    t_packet = packet->data;
+                    telemetry_submit(*t_packet);
+                    blink(K_LED_GREEN);
+                    csp_buffer_free(packet);
+                    break;
+
+                default:
+                    csp_service_handler(incoming_connection, packet);
+                    break;
+            }
+        }
+
+        /* Close current connection, and handle next */
+        csp_close(incoming_connection);
+    }
+}
+
+/* Setup CSP interface */
+static csp_iface_t csp_if_kiss;
+static csp_kiss_handle_t csp_kiss_driver;
+
+void local_usart_rx(uint8_t * buf, int len, void * pxTaskWoken) {
+    csp_kiss_rx(&csp_if_kiss, buf, len, pxTaskWoken);
+}
+
+
+int main(void) {
+    //Console is on UART2
     k_uart_console_init();
+
+    struct usart_conf conf;
+    /* set the device in KISS / UART interface */
+    char dev = (char)K_UART6;
+    conf.device = &dev;
+    //TODO: Set this in the config.json
+    conf.baudrate = 57600;
+    usart_init(&conf);
+
+    /* init kiss interface */
+    csp_kiss_init(&csp_if_kiss, &csp_kiss_driver, usart_putc, usart_insert, "KISS");
+
+    /* Setup callback from USART RX to KISS RS */
+    usart_set_callback(local_usart_rx);
+
+    /* csp buffer must be 256, or mtu in csp_iface must match */
+    csp_buffer_init(5, 256);
+
+    /* set to route through KISS / UART */
+    csp_init(TELEMETRY_CSP_ADDRESS);
+    csp_route_set(TELEMETRY_CSP_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
+    csp_route_start_task(500, 1);
+
 
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_ORANGE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
@@ -157,7 +241,9 @@ int main(void)
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_BUTTON_0, K_GPIO_INPUT, K_GPIO_PULL_NONE);
 
-    xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);
+    //TODO: Get working along with the logging thread
+    /*xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);*/
+    xTaskCreate(task_csp_telem_interface, "csp_telem_interface", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);
 
     vTaskStartScheduler();
 
