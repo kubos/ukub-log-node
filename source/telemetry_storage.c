@@ -14,10 +14,10 @@
 
 /**
  * @brief creates a filename that corresponds to the telemetry packet source_id and 
- *        the csp packet address.
+ *        a subsystem address.
  * @param filename_buf_ptr a pointer to the char[] to write to.
  * @param source_id the telemetry packet source_id from packet.source.source_id.
- * @param address the csp packet address from packet->id.src. 
+ * @param address a subsystem address. 
  * @param file_extension. 
  * @retval The length of the filename written.
  */
@@ -41,7 +41,7 @@ static int create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned i
 
 
 /**
- * @brief creates a formatted log entry from the telemetry packet.
+ * @brief creates a formatted csv log entry from the telemetry packet.
  * @param data_buf_ptr a pointer to the char[] to write to.
  * @param packet a telemetry packet to create a log entry from.
  * @retval The length of the log entry written.
@@ -75,9 +75,10 @@ static int format_log_entry_csv(char *data_buf_ptr, telemetry_packet packet) {
 
 
 /**
- * @brief [WIP Stub] creates a raw hex dump of the entire CSP packet.
+ * [WIP Stub] 
+ * @brief creates a formatted hex log entry from the telemetry packet.
  * @param data_buf_ptr a pointer to the char[] to write to.
- * @param packet a pointer to the CSP packet.
+ * @param packet a telemetry packet to create a log entry from.
  */
 static void format_log_entry_hex(char *data_buf_ptr, csp_packet_t *packet) {
     
@@ -87,10 +88,6 @@ static void format_log_entry_hex(char *data_buf_ptr, csp_packet_t *packet) {
 }
 
 
-/**
- * @brief print telemetry packet data.
- * @param packet a telemetry packet with data to print.
- */
 void print_to_console(telemetry_packet packet){
     
     if(packet.source.data_type == TELEMETRY_TYPE_INT) {
@@ -103,7 +100,7 @@ void print_to_console(telemetry_packet packet){
 }
 
 
-void telemetry_store(telemetry_packet data, unsigned int address)
+void telemetry_store(telemetry_packet packet, unsigned int address)
 {
     static char filename_buffer[FILE_NAME_BUFFER_SIZE];
     static char *filename_buf_ptr;
@@ -116,13 +113,13 @@ void telemetry_store(telemetry_packet data, unsigned int address)
     filename_buf_ptr = filename_buffer;
     data_buf_ptr = data_buffer;
     
-    filename_len = create_filename(filename_buf_ptr, data.source.source_id, address, FILE_EXTENSION_CSV);
-    data_len = format_log_entry_csv(data_buf_ptr, data);
+    filename_len = create_filename(filename_buf_ptr, packet.source.source_id, address, FILE_EXTENSION_CSV);
+    data_len = format_log_entry_csv(data_buf_ptr, packet);
 
     /*log here*/
     disk_save_string(filename_buf_ptr, data_buf_ptr, data_len);
 
-    //printf("Log Entry = %s", data_buf_ptr);
-    //printf("Filename = %s", filename_buf_ptr);
+    printf("Log Entry = %s", data_buf_ptr);
+    printf("Filename = %s", filename_buf_ptr);
     //printf("The data length %u\r\n", data_len);
 }

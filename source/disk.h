@@ -1,5 +1,5 @@
 /*
- * KubOS Core Flight Services
+ * KubOS RT
  * Copyright (C) 2016 Kubos Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,20 @@
 
 #include <stdio.h>
 
+/* Expanded error codes in addition to fatfs return codes */
+typedef enum {
+    END_OF_FILE = 20,   /* f_eof returned a non-zero value indicating EOF */
+    NOT_A_DIGIT,        /* (21) isdigit returned 0 indicating not a digit */
+    F_WRITE_ERROR       /* (22) f_write returned -1 indicating an error */
+} EXPANDED_RESULTS;
+
 
 /**
- * @brief open and appends and writes or if the filename does not exist
+ * @brief open, appends, and writes or if the filename does not exist
  *        creates a new file and writes a string.
  * @param file_path a pointer to the filename to write to.
  * @param data_buffer a pointer to the string to write.
  * @param data_len the length of the string.
- * @param retry_attempts.
  * @retval a table of values which (0 being 'okay') is found at 
  *         http://elm-chan.org/fsw/ff/en/rc.html
  */
@@ -37,10 +43,12 @@ uint16_t disk_save_string(const char *file_path, char *data_buffer, uint16_t dat
  * @brief open a file and load an unsigned 16 bit integer.
  * @param file_path a pointer to the filename to open.
  * @param value the pointer to store the retrieved value.
+ * @param entry the file line to read from the top of the file.
  * @retval a table of values which (0 being 'okay') is found at 
- *         http://elm-chan.org/fsw/ff/en/rc.html
+ *         http://elm-chan.org/fsw/ff/en/rc.html and the expanded 
+ *         results.
  */
-uint16_t disk_load_uint16(const char *file_path, uint16_t * value);
+uint16_t disk_load_uint16(const char *file_path, uint16_t * value, uint16_t line);
 
 
 /**
@@ -49,7 +57,8 @@ uint16_t disk_load_uint16(const char *file_path, uint16_t * value);
  * @param file_path a pointer to the filename to open.
  * @param value the value to write.
  * @retval a table of values which (0 being 'okay') is found at 
- *         http://elm-chan.org/fsw/ff/en/rc.html
+ *         http://elm-chan.org/fsw/ff/en/rc.html and the expanded 
+ *         results.
  */
 uint16_t disk_save_uint16(const char *file_path, uint16_t value);
 
