@@ -21,7 +21,7 @@
  * @param file_extension. 
  * @retval The length of the filename written.
  */
-static int create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned int address, const char *file_extension)
+static int create_filename(char *filename_buf_ptr, uint8_t source_id, uint8_t address, const char *file_extension)
 {
     int len;
 
@@ -100,7 +100,7 @@ void print_to_console(telemetry_packet packet){
 }
 
 
-void telemetry_store(telemetry_packet packet, unsigned int address)
+void telemetry_store(telemetry_packet packet)
 {
     static char filename_buffer[FILE_NAME_BUFFER_SIZE];
     static char *filename_buf_ptr;
@@ -113,7 +113,7 @@ void telemetry_store(telemetry_packet packet, unsigned int address)
     filename_buf_ptr = filename_buffer;
     data_buf_ptr = data_buffer;
     
-    filename_len = create_filename(filename_buf_ptr, packet.source.source_id, address, FILE_EXTENSION_CSV);
+    filename_len = create_filename(filename_buf_ptr, packet.source.source_id, packet.source.subsystem_id, FILE_EXTENSION_CSV);
     data_len = format_log_entry_csv(data_buf_ptr, packet);
 
     /*log here*/

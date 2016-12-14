@@ -59,7 +59,7 @@ CSP_DEFINE_TASK(task_server) {
             switch (csp_conn_dport(conn)) {
             case MY_PORT:
                 data = *((telemetry_packet*)packet->data);
-                telemetry_store(data, MY_ADDRESS);
+                telemetry_store(data);
                 csp_buffer_free(packet);
                 #if defined(TARGET_LIKE_FREERTOS) && defined(TARGET_LIKE_STM32)
                 blink(K_LED_ORANGE);
@@ -86,6 +86,7 @@ CSP_DEFINE_TASK(task_client) {
     data.data.i = 111;
     data.timestamp = 222;
     data.source.data_type = TELEMETRY_TYPE_INT;
+    data.source.subsystem_id = MY_ADDRESS;
     data.source.source_id = 3;
 
     while (1) {
