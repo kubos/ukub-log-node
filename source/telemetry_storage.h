@@ -1,7 +1,7 @@
 #ifndef TELEMETRY_STORAGE_H
 #define TELEMETRY_STORAGE_H
 
-#include "telemetry.h"
+#include <telemetry/telemetry/telemetry.h>
 
 
 /**
@@ -9,7 +9,7 @@
  *        the configuration.
  * @param packet the telemetry packet to store.
  */
-void telemetry_store(telemetry_packet packet, unsigned int address);
+void telemetry_store(telemetry_packet packet);
 
 
 /**
