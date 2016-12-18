@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <telemetry/telemetry/telemetry.h>
+#include "telemetry.h"
 #include "disk.h"
 #include "telemetry_storage.h"
 
@@ -21,7 +21,7 @@
  * @param file_extension. 
  * @retval The length of the filename written.
  */
-static int create_filename(char *filename_buf_ptr, uint8_t source_id, uint8_t address, const char *file_extension)
+static int create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned int address, const char *file_extension)
 {
     int len;
 
@@ -74,20 +74,6 @@ static int format_log_entry_csv(char *data_buf_ptr, telemetry_packet packet) {
 }
 
 
-/**
- * [WIP Stub] 
- * @brief creates a formatted hex log entry from the telemetry packet.
- * @param data_buf_ptr a pointer to the char[] to write to.
- * @param packet a telemetry packet to create a log entry from.
- */
-static void format_log_entry_hex(char *data_buf_ptr, csp_packet_t *packet) {
-    
-    if (data_buf_ptr == NULL || packet == NULL) {
-        return;
-    }
-}
-
-
 void print_to_console(telemetry_packet packet){
     
     if(packet.source.data_type == TELEMETRY_TYPE_INT) {
@@ -100,7 +86,7 @@ void print_to_console(telemetry_packet packet){
 }
 
 
-void telemetry_store(telemetry_packet packet)
+void telemetry_store(telemetry_packet packet, unsigned int address)
 {
     static char filename_buffer[FILE_NAME_BUFFER_SIZE];
     static char *filename_buf_ptr;
@@ -113,7 +99,7 @@ void telemetry_store(telemetry_packet packet)
     filename_buf_ptr = filename_buffer;
     data_buf_ptr = data_buffer;
     
-    filename_len = create_filename(filename_buf_ptr, packet.source.source_id, packet.source.subsystem_id, FILE_EXTENSION_CSV);
+    filename_len = create_filename(filename_buf_ptr, packet.source.source_id, address, FILE_EXTENSION_CSV);
     data_len = format_log_entry_csv(data_buf_ptr, packet);
 
     /*log here*/

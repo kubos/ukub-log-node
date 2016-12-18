@@ -1,13 +1,13 @@
 {
     "fs": {
-    	"fatfs": {
-    		"driver": {
-    			"SDIO": {}
-    		}
-    	}
+        "fatfs": {
+            "driver": {
+                "SDIO": {}
+            }
+        }
     },
     "hardware": {
-    	"SDIO": {},
+        "SDIO": {},
         "console": {
             "uart": "K_UART2",
             "baudRate": "57600"
@@ -15,6 +15,15 @@
         "uartDefaults": {
             "txQueueLen": 128,
             "rxQueueLen": 300
+        }
+    },
+    "telemetry":{
+        "subscribers" : {
+            "num" : 1
+        },
+    "csp":{
+        "address": 1,
+            "usart": {}
         }
     }
 }

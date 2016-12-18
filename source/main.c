@@ -17,13 +17,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include <csp/csp.h>
-#include <csp/arch/csp_thread.h>
-#include <csp/arch/csp_time.h>
-
 #include "telemetry_storage.h"
-#include <telemetry/telemetry/telemetry.h>
+#include "disk.h"
+#include "telemetry.h"
 
 #ifdef TARGET_LIKE_FREERTOS
 #include "kubos-hal/uart.h"
@@ -31,94 +27,74 @@
 #include "misc.h"
 #endif
 
-/* Example defines */
-#define MY_ADDRESS  1           // Address of local CSP node
-#define MY_PORT     10          // Port to send test traffic to
 
-#define FILE_NAME_BUFFER_SIZE 255
-#define DATA_BUFFER_SIZE 128
+CSP_DEFINE_TASK(telemetry_store_task) {
+    
+   telemetry_packet packet = { .data.i = 0, .timestamp = 0, \
+        .source.subsystem_id = 0, .source.data_type = TELEMETRY_TYPE_INT, \
+        .source.source_id = 0};
+    
+    telemetry_conn connection1;
 
-
-CSP_DEFINE_TASK(task_server) {
-
-    csp_socket_t *sock = csp_socket(CSP_SO_NONE);
-    csp_bind(sock, CSP_ANY);
-    csp_listen(sock, 10);
-
-    csp_conn_t *conn;
-    csp_packet_t *packet;
-    telemetry_packet data;
-    telemetry_packet *data_ptr;
-
+    /* Subscribe to source id 0x1 */
+    while (!telemetry_subscribe(&connection1, 0x1))
+    {
+        csp_sleep_ms(500);
+    }
+    
     while (1) {
-
-        if ((conn = csp_accept(sock, 10000)) == NULL)
-            continue;
-            
-        while ((packet = csp_read(conn, 100)) != NULL) {
-            switch (csp_conn_dport(conn)) {
-            case MY_PORT:
-                data = *((telemetry_packet*)packet->data);
-                telemetry_store(data);
-                csp_buffer_free(packet);
-                #if defined(TARGET_LIKE_FREERTOS) && defined(TARGET_LIKE_STM32)
-                blink(K_LED_ORANGE);
-                #endif
-                break;
-            default:
-                csp_service_handler(conn, packet);
-                break;
-            }
+        
+        printf("In task telemetry_log\r\n");
+        
+        #ifdef TARGET_LIKE_FREERTOS
+        blink(K_LED_RED);
+        #endif
+        
+        if (telemetry_read(connection1, &packet)) 
+        {
+        print_to_console(packet);
+        //telemetry_store(packet);
         }
-        csp_close(conn);
+        csp_sleep_ms(1000);
     }
     return CSP_TASK_RETURN;
 }
 
 
-CSP_DEFINE_TASK(task_client) {
-
-    csp_packet_t * packet;
-    csp_conn_t * conn;
+CSP_DEFINE_TASK(dummy_publisher) {
     
-    /* Create a telemetry packet with some dummy test data */
-    telemetry_packet data;
-    data.data.i = 111;
-    data.timestamp = 222;
-    data.source.data_type = TELEMETRY_TYPE_INT;
-    data.source.subsystem_id = MY_ADDRESS;
-    data.source.source_id = 3;
-
+    int runcount = 0;
+    uint16_t return_val;
+    csp_packet_t *packet;
+    csp_conn_t *conn;
+    
+    /* Create a telemetry packet for dummy test data */
+    telemetry_packet dummy_packet = { .data.i = 0, .timestamp = 0, \
+        .source.subsystem_id = 0x1, .source.data_type = TELEMETRY_TYPE_INT, \
+        .source.source_id = 0x1};
+    
     while (1) {
-
-        csp_sleep_ms(1000);
         
-        int result = csp_ping(MY_ADDRESS, 100, 100, CSP_O_NONE);
-        printf("Ping result %d [ms]\r\n", result);
-
+        printf("In task dummy_publisher\r\n");
+        
+        #ifdef TARGET_LIKE_FREERTOS
+        blink(K_LED_GREEN);
+        #endif
+        
+        /* Alternate between two different dummy payloads */ 
+        runcount++;
+        if(runcount%2 == 0){
+            dummy_packet.data.i = 333;
+            dummy_packet.timestamp = 444;
+        }
+        else {
+            dummy_packet.data.i = 111;
+            dummy_packet.timestamp = 222;
+        }
+        
+        /* Push the dummy packet into the telemetry system */
+        telemetry_publish(dummy_packet);
         csp_sleep_ms(1000);
-
-        packet = csp_buffer_get(100);
-        if (packet == NULL) {
-            printf("Failed to get buffer element\n");
-            return CSP_TASK_RETURN;
-        }
-
-        conn = csp_connect(CSP_PRIO_NORM, MY_ADDRESS, MY_PORT, 1000, CSP_O_NONE);
-        if (conn == NULL) {
-            printf("Connection failed\n");
-            csp_buffer_free(packet);
-            return CSP_TASK_RETURN;
-        }
-
-        memcpy(packet->data, &data, sizeof(telemetry_packet));
-        packet->length = sizeof(telemetry_packet);
-
-        if (!csp_send(conn, packet, 1000)) {
-            printf("Send failed\n");
-            csp_buffer_free(packet);
-        }
-        csp_close(conn);
     }
     return CSP_TASK_RETURN;
 }
@@ -136,36 +112,29 @@ int main(void)
     k_gpio_init(K_LED_RED, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     #endif
-    
+
     #ifdef TARGET_LIKE_MSP430
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_RED, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     /* Stop the watchdog. */
     WDTCTL = WDTPW + WDTHOLD;
-
     __enable_interrupt();
     #endif
+
+    /* Initialize the telemetry system */
+    printf("Initializing the telemetry system \r\n");
+    telemetry_init();
     
-    /* Init buffer system with 5 packets of maximum 300 bytes each */
-    printf("Initialising CSP\r\n");
-    csp_buffer_init(5, 300);
-
-    /* Init CSP with address MY_ADDRESS */
-    csp_init(MY_ADDRESS);
-
-    /* Start router task with 300 word stack, OS task priority 1 */
-    csp_route_start_task(300, 1);
-
-    /* Server */
-    printf("Starting Server task\r\n");
-    csp_thread_handle_t handle_server;
-    csp_thread_create(task_server, "SERVER", 1000, NULL, 0, &handle_server);
-
-    /* Client */
-    printf("Starting Client task\r\n");
-    csp_thread_handle_t handle_client;
-    csp_thread_create(task_client, "CLIENT", 1000, NULL, 0, &handle_client);
+    /* Dummy publisher task for pushing dummy data into telemetry */
+    printf("Starting dummy publisher task\r\n");
+    csp_thread_handle_t handle_dummy_publisher;
+    csp_thread_create(dummy_publisher, "PUB", 1000, NULL, 0, &handle_dummy_publisher);
     
+    /* Logging task for telemetry packets */
+    printf("Starting telemetry log task\r\n");
+    csp_thread_handle_t handle_telemetry_store_task;
+    csp_thread_create(telemetry_store_task, "SUB", 1000, NULL, 0, &handle_telemetry_store_task);
+
     #ifdef TARGET_LIKE_FREERTOS
     vTaskStartScheduler();
     #endif
@@ -174,6 +143,5 @@ int main(void)
     while(1) {
         csp_sleep_ms(100000);
     }
-
     return 0;
 }
