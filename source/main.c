@@ -24,13 +24,15 @@
 #include <csp/drivers/usart.h>
 #include <csp/interfaces/csp_if_kiss.h>
 
-#include "kubos-hal/uart.h"
-#include "kubos-hal/gpio.h"
+
+#include <kubos-hal/uart.h>
+#include <kubos-hal/gpio.h>
 
 #include <telemetry/telemetry.h>
 #include <telemetry-aggregator/aggregator.h>
 #include <telemetry/config.h>
 
+#include "disk.h"
 #include "telemetry_storage.h"
 #include "misc.h"
 
@@ -39,41 +41,50 @@
 
 #define SENSOR_NODE_ADDRESS YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS
 
-CSP_DEFINE_TASK(task_server) {
+CSP_DEFINE_TASK(task_server)
+{
 
     csp_socket_t *sock = csp_socket(CSP_SO_NONE);
     csp_bind(sock, CSP_ANY);
     csp_listen(sock, 10);
+}
 
-    csp_conn_t *conn;
-    csp_packet_t *packet;
-    telemetry_packet data;
-    telemetry_packet *data_ptr;
+
+CSP_DEFINE_TASK(telemetry_store_task) {
+
+   telemetry_packet packet = { .data.i = 0, .timestamp = 0, \
+        .source.subsystem_id = 0, .source.data_type = TELEMETRY_TYPE_INT, \
+        .source.source_id = 0};
+
+    telemetry_conn connection1;
+
+    /* Subscribe to source id 0x1 */
+    while (!telemetry_subscribe(&connection1, 0x1))
+    {
+        csp_sleep_ms(500);
+    }
 
     while (1) {
 
-        if ((conn = csp_accept(sock, 10000)) == NULL)
-            continue;
+        printf("In task telemetry_log\r\n");
 
-        while ((packet = csp_read(conn, 100)) != NULL) {
-            switch (csp_conn_dport(conn)) {
-                case TELEMETRY_CSP_PORT:
-                    data = *((telemetry_packet*)packet->data);
-                    telemetry_store(data, TELEMETRY_CSP_ADDRESS);
-                    csp_buffer_free(packet);
-                    break;
-                default:
-                    break;
-            }
+        #ifdef TARGET_LIKE_FREERTOS
+        blink(K_LED_RED);
+        #endif
+
+        if (telemetry_read(connection1, &packet)) 
+        {
+        print_to_console(packet);
+        //telemetry_store(packet);
         }
-        csp_close(conn);
+        csp_sleep_ms(1000);
     }
     return CSP_TASK_RETURN;
 }
 
 
-void task_csp_telem_interface(void* p) {
-
+CSP_DEFINE_TASK(task_csp_telem_interface)
+{
     /* Create socket without any socket options */
     csp_socket_t *sock = csp_socket(CSP_SO_NONE);
 
@@ -95,8 +106,10 @@ void task_csp_telem_interface(void* p) {
             continue;
 
         /* Read packets. Timout is 100 ms */
-        while ((packet = csp_read(incoming_connection, 100)) != NULL) {
-            switch (csp_conn_dport(incoming_connection)) {
+        while ((packet = csp_read(incoming_connection, 100)) != NULL)
+        {
+            switch (csp_conn_dport(incoming_connection))
+            {
                 case TELEMETRY_CSP_PORT:
                     /* Process packet here */
                     memcpy(&recv_packet, packet->data, sizeof(telemetry_packet));
@@ -116,15 +129,58 @@ void task_csp_telem_interface(void* p) {
     }
 }
 
+
+CSP_DEFINE_TASK(dummy_publisher)
+{
+    int runcount = 0;
+    uint16_t return_val;
+    csp_packet_t *packet;
+    csp_conn_t *conn;
+
+    /* Create a telemetry packet for dummy test data */
+    telemetry_packet dummy_packet = { .data.i = 0, .timestamp = 0, \
+        .source.subsystem_id = 0x1, .source.data_type = TELEMETRY_TYPE_INT, \
+        .source.source_id = 0x1};
+
+    while (1)
+    {
+
+        printf("In task dummy_publisher\r\n");
+
+        #ifdef TARGET_LIKE_FREERTOS
+        blink(K_LED_GREEN);
+        #endif
+
+        /* Alternate between two different dummy payloads */ 
+        runcount++;
+        if(runcount%2 == 0)
+        {
+            dummy_packet.data.i = 333;
+            dummy_packet.timestamp = 444;
+        }
+        else
+        {
+            dummy_packet.data.i = 111;
+            dummy_packet.timestamp = 222;
+        }
+
+        /* Push the dummy packet into the telemetry system */
+        telemetry_publish(dummy_packet);
+        csp_sleep_ms(1000);
+    }
+}
+
 /* Setup CSP interface */
 static csp_iface_t csp_if_kiss;
 static csp_kiss_handle_t csp_kiss_driver;
 
-void local_usart_rx(uint8_t * buf, int len, void * pxTaskWoken) {
+void local_usart_rx(uint8_t * buf, int len, void * pxTaskWoken)
+{
     csp_kiss_rx(&csp_if_kiss, buf, len, pxTaskWoken);
 }
 
-int main(void) {
+int main(void)
+{
     //Console is on UART2
     k_uart_console_init();
 
@@ -161,9 +217,22 @@ int main(void) {
     csp_thread_handle_t handle_server;
     csp_thread_create(task_server, "SERVER", 1000, NULL, 0, &handle_server);
 
+    /* Initialize the telemetry system */
+    printf("Initializing the telemetry system \r\n");
+    telemetry_init();
+
+    /* Dummy publisher task for pushing dummy data into telemetry */
+    printf("Starting dummy publisher task\r\n");
+    csp_thread_handle_t handle_dummy_publisher;
+    csp_thread_create(dummy_publisher, "PUB", 1000, NULL, 0, &handle_dummy_publisher);
+
+    /* Logging task for telemetry packets */
+    printf("Starting telemetry log task\r\n");
+    csp_thread_handle_t handle_telemetry_store_task;
+    csp_thread_create(telemetry_store_task, "SUB", 1000, NULL, 0, &handle_telemetry_store_task);
+
     vTaskStartScheduler();
     while(1) {
     }
-
     return 0;
 }

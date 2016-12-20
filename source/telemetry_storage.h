@@ -5,11 +5,17 @@
 
 
 /**
- * @brief store a csp packet or packet contents in a particular format.
- * @param packet a pointer to the CSP packet.
+ * @brief store a telemetry packet in a particular format specified by
+ *        the configuration.
+ * @param packet the telemetry packet to store.
  */
-void telemetry_store(telemetry_packet data, unsigned int address);
+void telemetry_store(telemetry_packet packet, unsigned int address);
 
+
+/**
+ * @brief print telemetry packet data.
+ * @param packet a telemetry packet with data to print.
+ */
 void print_to_console(telemetry_packet data);
 
 #endif

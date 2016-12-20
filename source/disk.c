@@ -1,5 +1,5 @@
 /*
- * KubOS Core Flight Services
+ * KubOS RT
  * Copyright (C) 2016 Kubos Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <ctype.h>
+#include <string.h>
 #include "disk.h"
 #include "misc.h"
 #include "kubos-hal/gpio.h"
@@ -24,6 +25,13 @@
 #include <kubos-core/modules/fs/fs.h>
 
 
+/** 
+ * @brief Open a file for write and append.
+ * @param fp a pointer to the file object structure.
+ * @param path to the file to open.
+ * @return ret a table of values which (0 being 'okay') is found at
+ *         http://elm-chan.org/fsw/ff/en/rc.html  
+ */
 static uint16_t open_append(FIL *fp, const char *path)
 {
     uint16_t result;
@@ -36,6 +44,22 @@ static uint16_t open_append(FIL *fp, const char *path)
             f_close(fp);
         }
     }
+    return result;
+}
+
+
+/** 
+ * @brief Open a file for read.
+ * @param fp a pointer to the file object structure.
+ * @param path to the file to open.
+ * @return ret a table of values which (0 being 'okay') is found at
+ *         http://elm-chan.org/fsw/ff/en/rc.html  
+ */
+static uint16_t open_read(FIL *fp, const char *path)
+{
+    uint16_t result;
+    result = f_open(fp, path, FA_READ | FA_OPEN_EXISTING);
+
     return result;
 }
 
@@ -64,6 +88,15 @@ static uint16_t write_string(char *str, int len, const char *path)
 }
 
 
+/** 
+ * @brief Register a work area of a volume and open the file to write
+ *        and append.
+ * @param FatFs a pointer to the file system object.
+ * @param fp a pointer to the file object structure.
+ * @param path to the file to open.
+ * @return ret a table of values which (0 being 'okay') is found at
+ *         http://elm-chan.org/fsw/ff/en/rc.html  
+ */
 static uint16_t open_file_write(FATFS *FatFs, FIL *Fil, const char *path)
 {
     uint16_t ret;
@@ -77,14 +110,22 @@ static uint16_t open_file_write(FATFS *FatFs, FIL *Fil, const char *path)
 }
 
 
+/** 
+ * @brief Register a work area of a volume and open the file to read.
+ * @param FatFs a pointer to the file system object.
+ * @param fp a pointer to the file object structure.
+ * @param path to the file to open.
+ * @return ret a table of values which (0 being 'okay') is found at
+ *         http://elm-chan.org/fsw/ff/en/rc.html  
+ */
 static uint16_t open_file_read(FATFS *FatFs, FIL *Fil, const char *path)
 {
+    printf("in open_file_read uint16 \r\n");
     uint16_t ret;
     
     if ((ret = f_mount(FatFs, "", 1)) == FR_OK)
     {
-        ret = f_open(Fil, path, FA_READ | FA_OPEN_EXISTING);
-        printf("** Opened file: %d\r\n", ret);
+        ret = open_read(Fil, path);
     }
 
     return ret;
@@ -92,10 +133,10 @@ static uint16_t open_file_read(FATFS *FatFs, FIL *Fil, const char *path)
 
 
 /** 
- * The close_file function closes a file and releases the handle.
+ * @brief Closes a file and releases the handle.
  * @param Fil a pointer to the file object structure
  * @return ret a table of values which (0 being 'okay') is found at
- * http://elm-chan.org/fsw/ff/en/rc.html  
+ *         http://elm-chan.org/fsw/ff/en/rc.html  
  */
 static uint16_t close_file(FIL *Fil)
 {
@@ -106,6 +147,14 @@ static uint16_t close_file(FIL *Fil)
 }
 
 
+/** 
+ * @brief Write a string.
+ * @param Fil a pointer to the file object structure.
+ * @param str a pointer to the the string to write.
+ * @param len the length of the string.
+ * @return ret a table of values which (0 being 'okay') is found at
+ *         http://elm-chan.org/fsw/ff/en/rc.html  
+ */
 static uint16_t just_write(FIL *Fil, char *str, uint16_t len)
 {
     uint16_t ret;
@@ -117,6 +166,7 @@ static uint16_t just_write(FIL *Fil, char *str, uint16_t len)
     }
     else
     {
+        blink(K_LED_RED);
         f_close(Fil);
     }
     //f_mount(NULL, "", 0);
@@ -125,32 +175,45 @@ static uint16_t just_write(FIL *Fil, char *str, uint16_t len)
 
 
 /**
- * The read_value function checks for an available string to read
- * from the calibration profile file and, if it is available, reads the 
- * string.
- * 
+ * TODO implement more efficient line counting.
+ * @brief Checks for an available string to read from the calibration 
+ *        profile file and, if it is available, reads the string.
  * @param Fil,  pointer to the file object structure
- * @return ret, 0 being 'FR_OK') 
- * and 20 being either 'at the end of tile' or 21 'this thing is not a digit'.
+ * @param value a pointer to the value to write back to.
+ * @param line the line number to read from.
+ * @return ret, FR_OK (0), END_OF_FILE (20), or NOT_A_DIGIT (21).
  */
-uint16_t read_value(FIL *Fil, uint16_t *value)
+uint16_t read_value(FIL *Fil, uint16_t *value, uint16_t line)
 {
+    printf("in read value \r\n");
     uint16_t ret = FR_OK;
     uint16_t temp = 0;
     int c;
+    int i;
     char buffer[128];
+
+    /* Move to the line specified */
+    for (i = 0; i < line; i++)
+    {
+        /* Make sure there's something to read */
+        if(f_eof(Fil))
+        {
+            return END_OF_FILE;
+        }
+        f_gets(buffer, sizeof buffer, Fil);
+    }
 
     /* Make sure there's something to read */
     if(f_eof(Fil))
     {
-        return 20;
+        return END_OF_FILE;
     }
 
     f_gets(buffer, sizeof buffer, Fil);
 
     if(!isdigit(buffer[0]))
     {
-        return 20;
+        return NOT_A_DIGIT;
     }
 
     /* convert read string to uint */
@@ -166,11 +229,10 @@ uint16_t read_value(FIL *Fil, uint16_t *value)
 
 
 /** 
- * write_value: a function to write a calibration profile value to the file.
- * If successful, the green LED blinks.
- * @param Fil, pointer to the file object structure
- * @param value, the thing you want to write to the file
- * @return ret returns 0 for success and 21 (for failure.  
+ * @brief Write a unsigned 16-bit integer to file.
+ * @param Fil, pointer to the file object structure.
+ * @param value, the uint16_t value to write.
+ * @return ret returns 0 for success and F_WRITE_ERROR (22) for failure.  
  */
 uint16_t write_value(FIL *Fil, uint16_t value)
 {
@@ -180,7 +242,7 @@ uint16_t write_value(FIL *Fil, uint16_t value)
         return  0;
     }
     blink(K_LED_RED);
-    return 22;
+    return F_WRITE_ERROR;
 }
 
 
@@ -212,8 +274,9 @@ uint16_t disk_save_string(const char *file_path, char *data_buffer, uint16_t dat
 }
 
 
-uint16_t disk_load_uint16(const char *file_path, uint16_t *value)
+uint16_t disk_load_uint16(const char *file_path, uint16_t *value, uint16_t line)
 {
+    printf("in load uint16 \r\n");
     static FATFS FatFs;
     static FIL Fil;
     uint16_t sd_stat = FR_OK;
@@ -223,7 +286,7 @@ uint16_t disk_load_uint16(const char *file_path, uint16_t *value)
     if (sd_stat == FR_OK)
     {
         blink(K_LED_GREEN);
-        sd_stat = read_value(&Fil, value);
+        sd_stat = read_value(&Fil, value, line);
         close_file(&Fil);
         return sd_stat;
     }
