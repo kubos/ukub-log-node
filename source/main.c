@@ -37,6 +37,7 @@
 #define FILE_NAME_BUFFER_SIZE 255
 #define DATA_BUFFER_SIZE 128
 
+#define SENSOR_NODE_ADDRESS YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS
 
 CSP_DEFINE_TASK(task_server) {
 
@@ -129,11 +130,9 @@ int main(void) {
 
     struct usart_conf conf;
     /* set the device in KISS / UART interface */
-    //TODO: Set the UART in the config.json
-    char dev = (char)K_UART6;
+    char dev = (char)YOTTA_CFG_CSP_UART_BUS;
     conf.device = &dev;
-    //TODO: Set this in the config.json
-    conf.baudrate = 57600;
+    conf.baudrate = K_UART_CONSOLE_BAUDRATE;
     usart_init(&conf);
 
     /* init kiss interface */
@@ -147,7 +146,7 @@ int main(void) {
 
     /* set to route through KISS / UART */
     csp_init(TELEMETRY_CSP_ADDRESS);
-    csp_route_set(YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
+    csp_route_set(SENSOR_NODE_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
     csp_route_start_task(10000, 1);
 
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
