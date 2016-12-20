@@ -26,6 +26,8 @@
         }
     },
     "telemetry": {
-        "csp_address": 3
+        "csp_address": 3,
+        "subscribers_num": 1,
+        "sensor_node_address": 1
     }
 }

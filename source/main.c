@@ -29,7 +29,7 @@
 
 #include <telemetry/telemetry.h>
 #include <telemetry-aggregator/aggregator.h>
-#include <telemetry/destinations.h>
+#include <telemetry/config.h>
 
 #include "telemetry_storage.h"
 #include "misc.h"
@@ -56,7 +56,7 @@ CSP_DEFINE_TASK(task_server) {
 
         while ((packet = csp_read(conn, 100)) != NULL) {
             switch (csp_conn_dport(conn)) {
-                case TELEMETRY_BEACON_PORT:
+                case TELEMETRY_CSP_PORT:
                     data = *((telemetry_packet*)packet->data);
                     telemetry_store(data, TELEMETRY_CSP_ADDRESS);
                     csp_buffer_free(packet);
@@ -85,7 +85,7 @@ void task_csp_telem_interface(void* p) {
     /* Pointer to current connection and packet */
     csp_conn_t *incoming_connection;
     csp_packet_t *packet;
-    telemetry_packet* t_packet;
+    telemetry_packet recv_packet;
     /* Process incoming connections */
     while (1) {
 
@@ -96,11 +96,10 @@ void task_csp_telem_interface(void* p) {
         /* Read packets. Timout is 100 ms */
         while ((packet = csp_read(incoming_connection, 100)) != NULL) {
             switch (csp_conn_dport(incoming_connection)) {
-                case TELEMETRY_BEACON_PORT:
+                case TELEMETRY_CSP_PORT:
                     /* Process packet here */
-                    t_packet = packet->data;
-                    /* This is the function call where the watchdog irq is firing */
-                    telemetry_submit(*t_packet);
+                    memcpy(&recv_packet, packet->data, sizeof(telemetry_packet));
+                    telemetry_publish(recv_packet);
                     blink(K_LED_GREEN);
                     csp_buffer_free(packet);
                     break;
@@ -148,7 +147,7 @@ int main(void) {
 
     /* set to route through KISS / UART */
     csp_init(TELEMETRY_CSP_ADDRESS);
-    csp_route_set(TELEMETRY_CSP_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
+    csp_route_set(YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
     csp_route_start_task(10000, 1);
 
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
