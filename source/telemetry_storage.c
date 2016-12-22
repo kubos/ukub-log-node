@@ -103,7 +103,7 @@ void print_to_console(telemetry_packet packet){
     }
 }
 
-
+//TODO: REMOVE ADDRESS
 void telemetry_store(telemetry_packet data, unsigned int address)
 {
     static char filename_buffer[FILE_NAME_BUFFER_SIZE];

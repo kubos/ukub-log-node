@@ -1,7 +1,7 @@
 {
      "CSP": {
        "my_address": "3",
-       "port": "10",
+       "port": "11",
        "uart_bus": "K_UART6",
        "usart": {
        },
