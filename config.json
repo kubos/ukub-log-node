@@ -2,7 +2,7 @@
      "CSP": {
        "my_address": "3",
        "port": "11",
-       "uart_bus": "K_UART6",
+       "uart_bus": "K_UART2",
        "usart": {
        },
        "rdp" : true
@@ -17,7 +17,7 @@
     "hardware": {
         "SDIO": {},
         "console": {
-            "uart": "K_UART2",
+            "uart": "K_UART4",
             "baudRate": "57600"
         },
         "uartDefaults": {

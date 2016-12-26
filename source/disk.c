@@ -251,12 +251,13 @@ uint16_t disk_save_string(const char *file_path, char *data_buffer, uint16_t dat
     static FATFS FatFs;
     static FIL Fil;
     uint16_t sd_stat = FR_OK;
-
+    blink(K_LED_BLUE);
+    blink(K_LED_BLUE);
     sd_stat = open_file_write(&FatFs, &Fil, file_path);
     
     if (sd_stat != FR_OK)
     {
-        blink(K_LED_RED);
+        /*blink(K_LED_BLUE);*/
         close_file(&Fil);
         f_mount(NULL, "", 0);
         sd_stat = open_file_write(&FatFs, &Fil, file_path);
@@ -264,7 +265,7 @@ uint16_t disk_save_string(const char *file_path, char *data_buffer, uint16_t dat
 
     if (sd_stat == FR_OK)
     {
-        blink(K_LED_GREEN);
+        /*blink(K_LED_ORANGE);*/
         sd_stat = just_write(&Fil, data_buffer, data_len);
         close_file(&Fil);
         return sd_stat;

@@ -40,7 +40,7 @@
 #define SENSOR_NODE_ADDRESS YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS
 
 CSP_DEFINE_TASK(telemetry_store_task) {
-
+    /*blink(K_LED_RED);*/
     /*telemetry_packet packet = { .data.i = 0, .timestamp = 0, \*/
         /*.source.subsystem_id = 0, .source.data_type = TELEMETRY_TYPE_INT, \*/
         /*.source.source_id = 0};*/
@@ -52,13 +52,14 @@ CSP_DEFINE_TASK(telemetry_store_task) {
     {
         csp_sleep_ms(500);
     }
-
+    printf("store_task about to read\n");
     while (1)
     {
         if (telemetry_read(connection, &packet))
         {
             print_to_console(packet);
-            //telemetry_store(packet);
+            printf("telemetry_store packet\n");
+            telemetry_store(packet);
         }
     }
 }
@@ -66,6 +67,8 @@ CSP_DEFINE_TASK(telemetry_store_task) {
 
 CSP_DEFINE_TASK(task_csp_telem_interface)
 {
+
+    /*blink(K_LED_BLUE);*/
     /* Create socket without any socket options */
     csp_socket_t *sock = csp_socket(CSP_SO_NONE);
 
@@ -78,7 +81,11 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     /* Pointer to current connection and packet */
     csp_conn_t *incoming_connection;
     csp_packet_t *packet;
-    telemetry_packet recv_packet;
+    telemetry_packet recv_packet = {.source.source_id=0xFF, .data.i=77, .source.data_type=TELEMETRY_TYPE_INT};
+    printf("sending shitty packet\n");
+    telemetry_publish(recv_packet);
+    printf("sent shitty packet\n");
+
     /* Process incoming connections */
     while (1)
     {
@@ -124,11 +131,11 @@ void local_usart_rx(uint8_t * buf, int len, void * pxTaskWoken)
 int main(void)
 {
     //Console is on UART2
-    /*k_uart_console_init();*/
+    k_uart_console_init();
 
     struct usart_conf conf;
     /* set the device in KISS / UART interface */
-    char dev = (char)K_UART6;
+    char dev = (char)K_UART2;
     conf.device = &dev;
     conf.baudrate = K_UART_CONSOLE_BAUDRATE;
     usart_init(&conf);

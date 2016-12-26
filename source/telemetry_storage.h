@@ -9,7 +9,7 @@
  *        the configuration.
  * @param packet the telemetry packet to store.
  */
-void telemetry_store(telemetry_packet packet, unsigned int address);
+void telemetry_store(telemetry_packet packet);
 
 
 /**
