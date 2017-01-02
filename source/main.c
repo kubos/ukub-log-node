@@ -30,6 +30,7 @@
 
 #include <telemetry/telemetry.h>
 #include <telemetry/config.h>
+#include <telemetry-aggregator/aggregator.h>
 
 #include "disk.h"
 #include "telemetry_storage.h"
@@ -40,25 +41,22 @@
 #define SENSOR_NODE_ADDRESS YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS
 
 CSP_DEFINE_TASK(telemetry_store_task) {
-    /*blink(K_LED_RED);*/
-    /*telemetry_packet packet = { .data.i = 0, .timestamp = 0, \*/
-        /*.source.subsystem_id = 0, .source.data_type = TELEMETRY_TYPE_INT, \*/
-        /*.source.source_id = 0};*/
     telemetry_packet packet;
-    telemetry_conn connection = { .sources=0xFF };
+    telemetry_conn connection;
 
     /*Subscribe to source id 0x1*/
     while (!telemetry_subscribe(&connection, 0xFF))
     {
         csp_sleep_ms(500);
     }
-    printf("store_task about to read\n");
+
     while (1)
     {
         if (telemetry_read(connection, &packet))
         {
-            print_to_console(packet);
+            /*print_to_console(packet);*/
             printf("telemetry_store packet\n");
+            blink(K_LED_RED);
             telemetry_store(packet);
         }
     }
@@ -67,12 +65,9 @@ CSP_DEFINE_TASK(telemetry_store_task) {
 
 CSP_DEFINE_TASK(task_csp_telem_interface)
 {
-
-    /*blink(K_LED_BLUE);*/
     /* Create socket without any socket options */
     csp_socket_t *sock = csp_socket(CSP_SO_NONE);
 
-    /* Bind all ports to socket */
     int res = csp_bind(sock, 10);
 
     /* Create 10 connections backlog queue */
@@ -82,9 +77,9 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     csp_conn_t *incoming_connection;
     csp_packet_t *packet;
     telemetry_packet recv_packet = {.source.source_id=0xFF, .data.i=77, .source.data_type=TELEMETRY_TYPE_INT};
-    printf("sending shitty packet\n");
-    telemetry_publish(recv_packet);
-    printf("sent shitty packet\n");
+    /*printf("sending  packet\n");*/
+    /*telemetry_publish(recv_packet);*/
+    /*printf("sent packet\n");*/
 
     /* Process incoming connections */
     while (1)
@@ -118,6 +113,18 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     }
 }
 
+void dummy_aggregator() {
+    telemetry_source dummy = { .source_id = 0xFF, .data_type = TELEMETRY_TYPE_INT};
+    aggregator_submit(dummy, 77);
+    blink(K_LED_BLUE);
+}
+
+void user_aggregator()
+{
+    //htu_aggregator();
+    //bno_aggregator();
+    dummy_aggregator();
+}
 
 /* Setup CSP interface */
 static csp_iface_t csp_if_kiss;
@@ -137,7 +144,7 @@ int main(void)
     /* set the device in KISS / UART interface */
     char dev = (char)K_UART2;
     conf.device = &dev;
-    conf.baudrate = K_UART_CONSOLE_BAUDRATE;
+    conf.baudrate = 57600;
     usart_init(&conf);
 
     /* init kiss interface */
@@ -148,23 +155,19 @@ int main(void)
 
     /* set to route through KISS / UART */
     telemetry_init();
-    /*csp_init(TELEMETRY_CSP_ADDRESS);*/
     csp_route_set(1, &csp_if_kiss, CSP_NODE_MAC);
-    /*csp_route_start_task(1000, 1);*/
 
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_ORANGE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_RED, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
 
-    //TODO: Get working along with the logging thread
-    /*xTaskCreate(task_logging, "logging", configMINIMAL_STACK_SIZE * 5, NULL, 2, NULL);*/
-    csp_thread_create(task_csp_telem_interface, "CSP_INT", 1000, NULL, 0, NULL);
-
+    /*csp_thread_create(task_csp_telem_interface, "CSP_INT", 1000, NULL, 0, NULL);*/
+    INIT_AGGREGATOR_THREAD;
 
     /* Logging task for telemetry packets */
     csp_thread_handle_t handle_telemetry_store_task;
-    csp_thread_create(telemetry_store_task, "SUB", 1000, NULL, 0, &handle_telemetry_store_task);
+    csp_thread_create(telemetry_store_task, "SUB", 9000, NULL, 0, &handle_telemetry_store_task);
 
     vTaskStartScheduler();
     while(1);

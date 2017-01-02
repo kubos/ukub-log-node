@@ -118,7 +118,7 @@ void telemetry_store(telemetry_packet data)
     /*blink(K_LED_RED);*/
     /*[>blink(K_LED_BLUE);<]*/
     /*blink(K_LED_RED);*/
-    printf("Telemetry Store\n ");
+    printf("\n\n\nTelemetry Store\n ");
     filename_buf_ptr = filename_buffer;
     data_buf_ptr = data_buffer;
 
