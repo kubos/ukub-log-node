@@ -32,6 +32,7 @@
         "subscribers_num": 1,
         "aggregator": {
             "interval": 5000
-        }
+        },
+        "subscribers_read_attempts": 5
     }
 }
