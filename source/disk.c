@@ -100,13 +100,11 @@ static uint16_t write_string(char *str, int len, const char *path)
 static uint16_t open_file_write(FATFS *FatFs, FIL *Fil, const char *path)
 {
     uint16_t ret;
-    printf("open_file_write\n");
     if ((ret = f_mount(FatFs, "", 1)) == FR_OK)
     {
         ret = open_append(Fil, path);
     }
     //f_mount(NULL, "", 0);
-    printf("ret: %i\n", ret);
     return ret;
 }
 
@@ -121,9 +119,8 @@ static uint16_t open_file_write(FATFS *FatFs, FIL *Fil, const char *path)
  */
 static uint16_t open_file_read(FATFS *FatFs, FIL *Fil, const char *path)
 {
-    printf("in open_file_read uint16 \r\n");
     uint16_t ret;
-    
+
     if ((ret = f_mount(FatFs, "", 1)) == FR_OK)
     {
         ret = open_read(Fil, path);
@@ -186,7 +183,6 @@ static uint16_t just_write(FIL *Fil, char *str, uint16_t len)
  */
 uint16_t read_value(FIL *Fil, uint16_t *value, uint16_t line)
 {
-    printf("in read value \r\n");
     uint16_t ret = FR_OK;
     uint16_t temp = 0;
     int c;
@@ -255,40 +251,33 @@ uint16_t disk_save_string(const char *file_path, char *data_buffer, uint16_t dat
     blink(K_LED_BLUE);
     blink(K_LED_BLUE);
     sd_stat = open_file_write(&FatFs, &Fil, file_path);
-    printf("sd_stat initially is: %i\n", sd_stat);
-    while (sd_stat != FR_OK)
+
+    while (sd_stat != FR_OK) //The file wasn't opened correctly on the sd card.
     {
-        /*blink(K_LED_BLUE);*/
-        printf("sd_stat != FR_OK\n");
+        blink(K_LED_BLUE);
         close_file(&Fil);
-        printf("file closed\n");
         f_mount(NULL, "", 0);
-        printf("unmounting?\n");
         sd_stat = open_file_write(&FatFs, &Fil, file_path);
-        printf("sd_stat after reattempt: %i\n", sd_stat);
     }
 
-    printf("sd_stat: %i\n", sd_stat);
     if (sd_stat == FR_OK)
+        //The file is open correctly
     {
-        printf("sd_stat = FR_OK");
-        /*blink(K_LED_ORANGE);*/
+        blink(K_LED_ORANGE);
         sd_stat = just_write(&Fil, data_buffer, data_len);
         close_file(&Fil);
         return sd_stat;
     }
-    printf("returning sd_stat: %i\n", sd_stat);
     return sd_stat;
 }
 
 
 uint16_t disk_load_uint16(const char *file_path, uint16_t *value, uint16_t line)
 {
-    printf("in load uint16 \r\n");
     static FATFS FatFs;
     static FIL Fil;
     uint16_t sd_stat = FR_OK;
-    
+
     sd_stat = open_file_read(&FatFs, &Fil, file_path);
 
     if (sd_stat == FR_OK)
@@ -308,7 +297,7 @@ uint16_t disk_save_uint16(const char *file_path, uint16_t value)
     static FATFS FatFs;
     static FIL Fil;
     uint16_t sd_stat = FR_OK;
-    
+
     sd_stat = open_file_write(&FatFs, &Fil, file_path);
 
     if (sd_stat != FR_OK)
@@ -318,7 +307,7 @@ uint16_t disk_save_uint16(const char *file_path, uint16_t value)
         f_mount(NULL, "", 0);
         sd_stat = open_file_write(&FatFs, &Fil, file_path);
     }
-    
+
     if (sd_stat == FR_OK)
     {
         blink(K_LED_GREEN);

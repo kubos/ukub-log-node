@@ -38,29 +38,24 @@
 
 #define FILE_NAME_BUFFER_SIZE 255
 
-#define SENSOR_NODE_ADDRESS YOTTA_CFG_TELEMETRY_SENSOR_NODE_ADDRESS
+#define SENSOR_NODE_ADDRESS YOTTA_CFG_CSP_SENSOR_NODE_ADDRESS
+#define SENSOR_NODE_PORT YOTTA_CFG_CSP_SENSOR_NODE_PORT
 
 CSP_DEFINE_TASK(telemetry_store_task) {
     telemetry_packet packet;
     telemetry_conn connection;
 
-    /*Subscribe to source id 0x1*/
-    while (!telemetry_subscribe(&connection, 0xFF))
+    while (!telemetry_subscribe(&connection, 0x0)) //Subscribe to all telemetry publishers
     {
-        csp_sleep_ms(5);
+        csp_sleep_ms(5); //5 is an arbitrary number
     }
-    printf("subscriber successfully subscribed\n");
 
     while (1)
     {
         if (telemetry_read(connection, &packet))
         {
-            /*print_to_console(packet);*/
-            printf("storing read packet\n");
             blink(K_LED_RED);
             telemetry_store(packet);
-        } else {
-            printf("nothing read\n");
         }
     }
 }
@@ -71,7 +66,7 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     /* Create socket without any socket options */
     csp_socket_t *sock = csp_socket(CSP_SO_NONE);
 
-    int res = csp_bind(sock, 10);
+    csp_bind(sock, 10);
 
     /* Create 10 connections backlog queue */
     csp_listen(sock, 10);
@@ -79,9 +74,8 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     /* Pointer to current connection and packet */
     csp_conn_t *incoming_connection;
     csp_packet_t *packet;
-    telemetry_packet recv_packet = {.source.source_id=0xFF, .data.i=77, .source.data_type=TELEMETRY_TYPE_INT};
+    telemetry_packet recv_packet;
 
-    /* Process incoming connections */
     while (1)
     {
 
@@ -94,8 +88,9 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
         {
             switch (csp_conn_dport(incoming_connection))
             {
-                case 10: //Port 10 is the port the incoming packet is on
-                    /* Process packet here */
+                case SENSOR_NODE_PORT:
+                    /* Copy the telemetry packet data from the received csp packet and */
+                    /* Submit that telemetry packet into telemetry system */
                     memcpy(&recv_packet, packet->data, sizeof(telemetry_packet));
                     telemetry_publish(recv_packet);
                     blink(K_LED_GREEN);
@@ -113,19 +108,6 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     }
 }
 
-void dummy_aggregator() {
-    telemetry_source dummy = { .source_id = 0xFF, .data_type = TELEMETRY_TYPE_INT};
-    aggregator_submit(dummy, 77);
-    blink(K_LED_BLUE);
-}
-
-void user_aggregator()
-{
-    //htu_aggregator();
-    //bno_aggregator();
-    dummy_aggregator();
-}
-
 /* Setup CSP interface */
 static csp_iface_t csp_if_kiss;
 static csp_kiss_handle_t csp_kiss_driver;
@@ -140,10 +122,9 @@ int main(void)
     k_uart_console_init();
 
     struct usart_conf conf;
-    /* set the device in KISS / UART interface */
     char dev = (char)K_UART2;
     conf.device = &dev;
-    conf.baudrate = 57600;
+    conf.baudrate = K_UART_CONSOLE_BAUDRATE; //57600
     usart_init(&conf);
 
     /* init kiss interface */
@@ -154,7 +135,7 @@ int main(void)
 
     /* set to route through KISS / UART */
     telemetry_init();
-    csp_route_set(1, &csp_if_kiss, CSP_NODE_MAC);
+    csp_route_set(SENSOR_NODE_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
 
     k_gpio_init(K_LED_GREEN, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_ORANGE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
@@ -162,7 +143,6 @@ int main(void)
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
 
     csp_thread_create(task_csp_telem_interface, "CSP_INT", 1000, NULL, 1, NULL);
-    /*INIT_AGGREGATOR_THREAD;*/
 
     /* Logging task for telemetry packets */
     csp_thread_handle_t handle_telemetry_store_task;

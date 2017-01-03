@@ -3,6 +3,8 @@
        "my_address": "3",
        "port": "11",
        "uart_bus": "K_UART2",
+        "sensor_node_address": 1,
+        "sensor_node_port": 10,
        "usart": {
        },
        "rdp" : true
@@ -28,7 +30,6 @@
     "telemetry": {
         "csp_address": 3,
         "subscribers_num": 1,
-        "sensor_node_address": 1,
         "aggregator": {
             "interval": 5000
         }

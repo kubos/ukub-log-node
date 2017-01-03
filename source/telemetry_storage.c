@@ -114,11 +114,6 @@ void telemetry_store(telemetry_packet data)
     uint16_t data_len;
     uint16_t filename_len;
 
-    /*blink(K_LED_RED);*/
-    /*blink(K_LED_RED);*/
-    /*[>blink(K_LED_BLUE);<]*/
-    /*blink(K_LED_RED);*/
-    printf("\n\n\nTelemetry Store\n ");
     filename_buf_ptr = filename_buffer;
     data_buf_ptr = data_buffer;
 
@@ -126,10 +121,9 @@ void telemetry_store(telemetry_packet data)
     data_len = format_log_entry_csv(data_buf_ptr, data);
 
     /*log here*/
-    printf("disk save string");
     disk_save_string(filename_buf_ptr, data_buf_ptr, data_len);
 
-    printf("Log Entry = %s", data_buf_ptr);
-    printf("Filename = %s", filename_buf_ptr);
+    printf("Log Entry = %s\n", data_buf_ptr);
+    printf("Filename = %s\n", filename_buf_ptr);
     printf("The data length %u\r\n", data_len);
 }
