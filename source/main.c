@@ -47,17 +47,20 @@ CSP_DEFINE_TASK(telemetry_store_task) {
     /*Subscribe to source id 0x1*/
     while (!telemetry_subscribe(&connection, 0xFF))
     {
-        csp_sleep_ms(500);
+        csp_sleep_ms(5);
     }
+    printf("subscriber successfully subscribed\n");
 
     while (1)
     {
         if (telemetry_read(connection, &packet))
         {
             /*print_to_console(packet);*/
-            printf("telemetry_store packet\n");
+            printf("storing read packet\n");
             blink(K_LED_RED);
             telemetry_store(packet);
+        } else {
+            printf("nothing read\n");
         }
     }
 }
@@ -77,9 +80,6 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
     csp_conn_t *incoming_connection;
     csp_packet_t *packet;
     telemetry_packet recv_packet = {.source.source_id=0xFF, .data.i=77, .source.data_type=TELEMETRY_TYPE_INT};
-    /*printf("sending  packet\n");*/
-    /*telemetry_publish(recv_packet);*/
-    /*printf("sent packet\n");*/
 
     /* Process incoming connections */
     while (1)
@@ -94,7 +94,7 @@ CSP_DEFINE_TASK(task_csp_telem_interface)
         {
             switch (csp_conn_dport(incoming_connection))
             {
-                case 10:
+                case 10: //Port 10 is the port the incoming packet is on
                     /* Process packet here */
                     memcpy(&recv_packet, packet->data, sizeof(telemetry_packet));
                     telemetry_publish(recv_packet);
@@ -137,7 +137,6 @@ void local_usart_rx(uint8_t * buf, int len, void * pxTaskWoken)
 
 int main(void)
 {
-    //Console is on UART2
     k_uart_console_init();
 
     struct usart_conf conf;
@@ -162,12 +161,12 @@ int main(void)
     k_gpio_init(K_LED_RED, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
     k_gpio_init(K_LED_BLUE, K_GPIO_OUTPUT, K_GPIO_PULL_NONE);
 
-    /*csp_thread_create(task_csp_telem_interface, "CSP_INT", 1000, NULL, 0, NULL);*/
-    INIT_AGGREGATOR_THREAD;
+    csp_thread_create(task_csp_telem_interface, "CSP_INT", 1000, NULL, 1, NULL);
+    /*INIT_AGGREGATOR_THREAD;*/
 
     /* Logging task for telemetry packets */
     csp_thread_handle_t handle_telemetry_store_task;
-    csp_thread_create(telemetry_store_task, "SUB", 9000, NULL, 0, &handle_telemetry_store_task);
+    csp_thread_create(telemetry_store_task, "SUB", 10000, NULL, 1, &handle_telemetry_store_task);
 
     vTaskStartScheduler();
     while(1);
