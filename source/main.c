@@ -43,6 +43,8 @@
 
 CSP_DEFINE_TASK(telemetry_store_task) {
 
+
+    blink(K_LED_BLUE);
     telemetry_packet packet;
     telemetry_conn connection;
 

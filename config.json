@@ -1,9 +1,9 @@
 {
      "CSP": {
-        "my_address": "3",
-        "port": "10",
+        "my_address": 3,
+        "port": 10,
         "uart_bus": "K_UART2",
-        "baudrate": "57600",
+        "baudrate": 57600,
         "sensor_node_address": 1,
         "sensor_node_port": 10,
         "usart": {
@@ -21,13 +21,16 @@
         "SDIO": {},
         "console": {
             "uart": "K_UART3",
-            "baudRate": "57600"
+            "baudRate": 57600
+        },
+        "uartDefaults": {
+            "txQueueLen": 128,
+            "rxQueueLen": 300
             }
         },
     "telemetry": {
         "csp_address": 3,
         "csp_port" : 11,
-        "sensor_node_address": 1,
         "subscribers_num": 1,
         "subscribers_read_attempts": 5
     }
