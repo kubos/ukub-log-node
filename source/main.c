@@ -20,7 +20,6 @@
 
 #include <csp/csp.h>
 #include <csp/arch/csp_thread.h>
-#include <csp/arch/csp_time.h>
 #include <csp/drivers/usart.h>
 #include <csp/interfaces/csp_if_kiss.h>
 
@@ -28,7 +27,6 @@
 #include <kubos-hal/gpio.h>
 
 #include <telemetry/telemetry.h>
-#include <telemetry/config.h>
 
 #include "disk.h"
 #include "telemetry_storage.h"
@@ -51,7 +49,7 @@ CSP_DEFINE_TASK(telemetry_store_task) {
     /* Subscribe to all telemetry publishers */
     while (!telemetry_subscribe(&connection, 0x0))
     {
-        /* 5 is an arbitrary number */
+        /* Retry subscribing every 5 ms */
         csp_sleep_ms(5);
     }
 
@@ -99,7 +97,7 @@ CSP_DEFINE_TASK(uart_rx_task)
                 case SENSOR_NODE_PORT:
                     /* Copy the telemetry packet data from the received csp packet */
                     memcpy(&recv_packet, packet->data, sizeof(telemetry_packet));
-                    /* Submit that telemetry packet into the telemetry system */
+                    /* Submit the telemetry packet into the telemetry system */
                     telemetry_publish(recv_packet);
                     blink(K_LED_GREEN);
                     csp_buffer_free(packet);
@@ -142,7 +140,7 @@ int main(void)
     conf.baudrate = CSP_UART_BAUDRATE;
     usart_init(&conf);
 
-    /* Init kiss interface */
+    /* Initialize KISS interface */
     csp_kiss_init(&csp_if_kiss, &csp_kiss_driver, usart_putc, usart_insert, "KISS");
 
     /* Setup callback from USART RX to KISS RS */
@@ -156,11 +154,11 @@ int main(void)
 
     /* Receiving task for CSP UART */
     csp_thread_handle_t handle_uart_rx_task;
-    csp_thread_create(uart_rx_task, "RX", 1000, NULL, 1, handle_uart_rx_task);
+    csp_thread_create(uart_rx_task, "RX", 1000, NULL, 1, &handle_uart_rx_task);
 
     /* Logging task for telemetry packets */
     csp_thread_handle_t handle_telemetry_store_task;
-    csp_thread_create(telemetry_store_task, "SUB", 10000, NULL, 1, &handle_telemetry_store_task);
+    csp_thread_create(telemetry_store_task, "SUB", 1000, NULL, 1, &handle_telemetry_store_task);
 
     vTaskStartScheduler();
     
