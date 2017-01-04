@@ -10,7 +10,7 @@
   "homepage": "https://github.com/kubostech/ukub-log-node",
   "license": "Apache-2.0",
   "dependencies": {
-      "telemetry-aggregator" : "kubostech/telemetry-aggregator",
+      "telemetry" : "kubostech/telemetry",
       "kubos-rt" : "kubostech/kubos-rt#~0.1.0"
   }
 }

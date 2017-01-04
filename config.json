@@ -1,13 +1,14 @@
 {
      "CSP": {
-       "my_address": "3",
-       "port": "11",
-       "uart_bus": "K_UART2",
+        "my_address": "3",
+        "port": "11",
+        "uart_bus": "K_UART2",
+        "baudrate": "57600",
         "sensor_node_address": 1,
         "sensor_node_port": 10,
-       "usart": {
-       },
-       "rdp" : true
+        "usart": {
+        },
+        "rdp" : true
    },
     "fs": {
         "fatfs": {
@@ -29,10 +30,9 @@
     },
     "telemetry": {
         "csp_address": 3,
+        "csp_port" : 11,
+        "sensor_node_address": 1,
         "subscribers_num": 1,
-        "aggregator": {
-            "interval": 5000
-        },
         "subscribers_read_attempts": 5
     }
 }
