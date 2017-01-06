@@ -35,7 +35,6 @@ static int create_filename(char *filename_buf_ptr, uint8_t source_id, unsigned i
 
     if(len < 0 || len >= FILE_NAME_BUFFER_SIZE) {
         printf("Filename char limit exceeded. Have %d, need %d + \\0\n", FILE_NAME_BUFFER_SIZE, len);
-        //len = snprintf(filename_buf_ptr, FILE_NAME_BUFFER_SIZE, "\0");
         return 0;
     }
     return len;
@@ -62,7 +61,7 @@ static int format_log_entry_csv(char *data_buf_ptr, telemetry_packet packet) {
             printf("Data char limit exceeded for int packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
             return 0;
         }
-    return len; }
+    }
 
     if(packet.source.data_type == TELEMETRY_TYPE_FLOAT) {
         len = snprintf(data_buf_ptr, DATA_BUFFER_SIZE, "%u,%f\r\n", packet.timestamp, packet.data.f);
@@ -70,8 +69,8 @@ static int format_log_entry_csv(char *data_buf_ptr, telemetry_packet packet) {
             printf("Data char limit exceeded for float packet. Have %d, need %d + \\0\n", DATA_BUFFER_SIZE, len);
             return 0;
         }
-    return len;
     }
+    return len;
 }
 
 
@@ -103,7 +102,7 @@ void print_to_console(telemetry_packet packet){
     }
 }
 
-//TODO: REMOVE ADDRESS
+
 void telemetry_store(telemetry_packet data)
 {
     static char filename_buffer[FILE_NAME_BUFFER_SIZE];
@@ -123,7 +122,7 @@ void telemetry_store(telemetry_packet data)
     /*log here*/
     disk_save_string(filename_buf_ptr, data_buf_ptr, data_len);
 
-    printf("Log Entry = %s\n", data_buf_ptr);
-    printf("Filename = %s\n", filename_buf_ptr);
-    printf("The data length %u\r\n", data_len);
+    //printf("Log Entry = %s\n", data_buf_ptr);
+    //printf("Filename = %s\n", filename_buf_ptr);
+    //printf("The data length %u\r\n", data_len);
 }
