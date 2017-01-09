@@ -25,13 +25,11 @@
 
 #include <kubos-hal/uart.h>
 #include <kubos-hal/gpio.h>
-
 #include <telemetry/telemetry.h>
 
 #include "disk.h"
 #include "telemetry_storage.h"
 #include "misc.h"
-
 
 #define SENSOR_NODE_ADDRESS YOTTA_CFG_CSP_SENSOR_NODE_ADDRESS
 #define SENSOR_NODE_PORT YOTTA_CFG_CSP_SENSOR_NODE_PORT
@@ -41,8 +39,8 @@
 #define CSP_MY_PORT YOTTA_CFG_CSP_PORT
 
 
-CSP_DEFINE_TASK(telemetry_store_task) {
-
+CSP_DEFINE_TASK(telemetry_store_task) 
+{
     telemetry_packet packet;
     telemetry_conn connection;
 
