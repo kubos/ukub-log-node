@@ -1,6 +1,6 @@
 {
   "name": "ukub-log-node",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "bin": "./source",
   "description": "Logger node for ukub mission",
   "repository": {
@@ -9,8 +9,8 @@
   },
   "homepage": "https://github.com/kubostech/ukub-log-node",
   "license": "Apache-2.0",
-  "bin" : "./source",
   "dependencies": {
+      "telemetry" : "kubostech/telemetry",
       "kubos-rt" : "kubostech/kubos-rt#~0.1.0"
   }
 }
