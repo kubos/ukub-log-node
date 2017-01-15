@@ -26,9 +26,8 @@
 #include <kubos-hal/uart.h>
 #include <kubos-hal/gpio.h>
 #include <telemetry/telemetry.h>
+#include <telemetry-storage/telemetry_storage.h>
 
-#include "disk.h"
-#include "telemetry_storage.h"
 #include "misc.h"
 
 #define SENSOR_NODE_ADDRESS YOTTA_CFG_CSP_SENSOR_NODE_ADDRESS
@@ -37,30 +36,6 @@
 #define CSP_UART_BUS YOTTA_CFG_CSP_UART_BUS
 #define CSP_MY_ADDRESS YOTTA_CFG_CSP_MY_ADDRESS
 #define CSP_MY_PORT YOTTA_CFG_CSP_PORT
-
-
-CSP_DEFINE_TASK(telemetry_store_task) 
-{
-    telemetry_packet packet;
-    telemetry_conn connection;
-
-    /* Subscribe to all telemetry publishers */
-    while (!telemetry_subscribe(&connection, 0x0))
-    {
-        /* Retry subscribing every 5 ms */
-        csp_sleep_ms(5);
-    }
-
-    while (1)
-    {
-        if (telemetry_read(connection, &packet))
-        {
-            /* Store telemetry packets from the telemetry system */
-            telemetry_store(packet);
-            blink(K_LED_RED);
-        }
-    }
-}
 
 
 CSP_DEFINE_TASK(uart_rx_task)
@@ -147,16 +122,15 @@ int main(void)
     /* Initialize the telemetry_system */
     telemetry_init();
     
+    /* Initialize the telemetry storage system */
+    telemetry_storage_init();
+    
     /* Set to route through KISS / UART */
     csp_route_set(SENSOR_NODE_ADDRESS, &csp_if_kiss, CSP_NODE_MAC);
 
     /* Receiving task for CSP UART */
     csp_thread_handle_t handle_uart_rx_task;
     csp_thread_create(uart_rx_task, "RX", 1000, NULL, 1, &handle_uart_rx_task);
-
-    /* Logging task for telemetry packets */
-    csp_thread_handle_t handle_telemetry_store_task;
-    csp_thread_create(telemetry_store_task, "SUB", 1000, NULL, 1, &handle_telemetry_store_task);
 
     vTaskStartScheduler();
     
