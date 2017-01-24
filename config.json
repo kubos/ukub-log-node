@@ -32,6 +32,15 @@
         "csp_address": 3,
         "csp_port" : 11,
         "subscribers_num": 1,
-        "subscribers_read_attempts": 5
+        "subscribers_read_attempts": 5,
+        "storage": {
+            "file_name_buffer_size": 128,
+            "data_buffer_size": 128,
+            "data_output_format": 0,
+            "subscriptions": "0x0",
+            "subscribe_retry_interval": 50,
+            "stack_depth": 1000,
+            "task_priority": 1
+        }
     }
 }
